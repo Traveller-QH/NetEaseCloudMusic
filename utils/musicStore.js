@@ -1,0 +1,505 @@
+/**
+ * 全局音乐播放状态管理
+ */
+import { reactive, ref, computed } from 'vue'
+import { getSongDetail, getSongUrl, getLyric, getSongComment } from './api.js'
+
+// 当前播放请求ID，用于处理并发播放请求
+let currentPlayId = 0
+
+// 音频播放器管理器
+const AudioPlayerManager = (() => {
+	let audioContext = null
+	let currentPlayId = 0
+	let isPlaying = false
+	let pendingPlayPromise = null
+	
+	// 初始化音频实例
+	const initAudio = () => {
+		if (audioContext) return audioContext
+		
+		audioContext = uni.createInnerAudioContext()
+		
+		// 监听播放事件
+		audioContext.onPlay(() => {
+			isPlaying = true
+			state.isPlaying = true
+		})
+		
+		// 监听暂停事件
+		audioContext.onPause(() => {
+			isPlaying = false
+			state.isPlaying = false
+		})
+		
+		// 监听停止事件
+		audioContext.onStop(() => {
+			isPlaying = false
+			state.isPlaying = false
+			state.currentTime = 0
+		})
+		
+		// 监听播放结束
+		audioContext.onEnded(() => {
+			isPlaying = false
+			state.isPlaying = false
+			state.currentTime = 0
+		})
+		
+		// 监听时间更新
+		audioContext.onTimeUpdate(() => {
+			state.currentTime = audioContext.currentTime || 0
+			state.duration = audioContext.duration || 0
+			// 更新当前歌词索引
+			updateCurrentLyricIndex()
+		})
+		
+		// 监听可播放
+		audioContext.onCanplay(() => {
+			state.duration = audioContext.duration || 0
+			state.loading = false
+		})
+		
+		// 监听错误
+		audioContext.onError((err) => {
+			console.error('音频播放错误:', err)
+			isPlaying = false
+			state.isPlaying = false
+			state.loading = false
+		})
+		
+		return audioContext
+	}
+	
+	// 安全播放
+	const safePlay = async (url) => {
+		const audio = initAudio()
+		const playId = ++currentPlayId
+		let playPromise = null
+		
+		// 如果有正在等待的播放Promise，先取消它
+		if (pendingPlayPromise) {
+			console.log('取消之前的播放请求')
+		}
+		
+		// 如果正在播放，先停止
+		if (isPlaying) {
+			audio.stop()
+		}
+		
+		// 设置新的播放源
+		audio.src = url
+		
+		try {
+			// 创建播放Promise
+			playPromise = audio.play()
+			pendingPlayPromise = playPromise
+			
+			if (playPromise !== undefined) {
+				await playPromise
+				
+				// 检查是否还是当前的播放请求
+				if (playId === currentPlayId) {
+					console.log('音频播放成功')
+					isPlaying = true
+					state.isPlaying = true
+				} else {
+					console.log('播放成功但已被新请求取代')
+				}
+			}
+		} catch (error) {
+			// 检查是否还是当前的播放请求
+			if (playId !== currentPlayId) {
+				console.log('播放错误已被新请求取代，忽略')
+				return
+			}
+			
+			// 处理具体的错误类型
+			if (error.name === 'AbortError') {
+				console.log('播放被新请求中断，已忽略')
+				return
+			}
+			
+			if (error.name === 'NotAllowedError') {
+				console.warn('浏览器需要用户交互才能播放音频')
+				state.isPlaying = false
+				isPlaying = false
+				return
+			}
+			
+			console.error('播放失败:', error)
+			state.isPlaying = false
+			isPlaying = false
+		} finally {
+			// 清理pending状态
+			if (pendingPlayPromise && playPromise && pendingPlayPromise === playPromise) {
+				pendingPlayPromise = null
+			}
+		}
+	}
+	
+	// 停止播放
+	const stop = () => {
+		if (audioContext) {
+			audioContext.stop()
+		}
+		isPlaying = false
+		state.isPlaying = false
+		state.currentTime = 0
+		currentPlayId++ // 增加ID来取消任何pending的播放请求
+	}
+	
+	// 暂停播放
+	const pause = () => {
+		if (audioContext && isPlaying) {
+			audioContext.pause()
+		}
+	}
+	
+	// 恢复播放
+	const resume = () => {
+		if (audioContext && state.songUrl) {
+			audioContext.play()
+		}
+	}
+	
+	// 跳转时间
+	const seek = (time) => {
+		if (audioContext) {
+			audioContext.seek(time)
+			state.currentTime = time
+		}
+	}
+	
+	return {
+		initAudio,
+		safePlay,
+		stop,
+		pause,
+		resume,
+		seek,
+		get isPlaying() { return isPlaying },
+		get currentPlayId() { return currentPlayId }
+	}
+})()
+
+// 音频实例
+let audioContext = null
+
+// 全局音乐状态
+const state = reactive({
+	// 当前歌曲信息
+	currentSong: null,
+	// 播放状态
+	isPlaying: false,
+	// 当前播放时间（秒）
+	currentTime: 0,
+	// 总时长（秒）
+	duration: 0,
+	// 播放地址
+	songUrl: '',
+	// 加载状态
+	loading: false,
+	// 歌词列表 [{ time: 秒数, text: '歌词内容' }]
+	lyrics: [],
+	// 当前歌词索引
+	currentLyricIndex: 0,
+	// 评论数量
+	commentCount: 0
+})
+
+// 歌曲名称
+const songName = computed(() => state.currentSong?.name || '')
+
+// 歌手名称
+const artistNames = computed(() => {
+	const artists = state.currentSong?.ar || state.currentSong?.artists || []
+	if (!artists.length) return ''
+	return artists.map(a => a.name).join(' / ')
+})
+
+// 专辑封面
+const albumCover = computed(() => {
+	const al = state.currentSong?.al || state.currentSong?.album
+	return al?.picUrl || ''
+})
+
+// 播放进度百分比
+const progress = computed(() => {
+	if (!state.duration) return 0
+	return (state.currentTime / state.duration) * 100
+})
+
+// 格式化时间
+const formatTime = (seconds) => {
+	if (!seconds || isNaN(seconds)) return '00:00'
+	const mins = Math.floor(seconds / 60)
+	const secs = Math.floor(seconds % 60)
+	return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+}
+
+// 当前时间格式化
+const currentTimeStr = computed(() => formatTime(state.currentTime))
+
+// 总时长格式化
+const durationStr = computed(() => formatTime(state.duration))
+
+// 评论数量格式化
+const commentCountStr = computed(() => {
+	const count = state.commentCount
+	if (!count) return '0'
+	if (count >= 1000000) {
+		return '100w+'
+	}
+	if (count >= 100000) {
+		return '10w+'
+	}
+	if (count >= 10000) {
+		return '1w+'
+	}
+	if (count >= 1000) {
+		return '1k'
+	}
+	return count.toString()
+})
+
+// 初始化音频实例
+const initAudio = () => {
+	return AudioPlayerManager.initAudio()
+}
+
+// 播放歌曲（通过歌曲id）
+const playSongById = async (id) => {
+	if (!id) return
+	
+	// 生成新的播放请求ID
+	const requestId = ++currentPlayId
+	
+	state.loading = true
+	state.lyrics = []
+	state.currentLyricIndex = 0
+	state.commentCount = 0
+	
+	try {
+		// 获取歌曲详情
+		const detailRes = await getSongDetail(id)
+		if (detailRes.code === 200 && detailRes.songs && detailRes.songs.length > 0) {
+			state.currentSong = detailRes.songs[0]
+		}
+		
+		// 检查是否是最新的请求
+		if (requestId !== currentPlayId) {
+			console.log('有新的播放请求，取消当前请求')
+			state.loading = false
+			return
+		}
+		
+		// 获取歌词
+		fetchLyric(id)
+		
+		// 获取评论数量
+		fetchCommentCount(id)
+		
+		// 获取播放地址
+		const urlRes = await getSongUrl(id, 'standard')
+		
+		// 再次检查是否是最新的请求
+		if (requestId !== currentPlayId) {
+			console.log('有新的播放请求，取消当前请求')
+			state.loading = false
+			return
+		}
+		
+		if (urlRes.code === 200 && urlRes.data && urlRes.data.length > 0) {
+			const url = urlRes.data[0].url
+			if (url) {
+				state.songUrl = url
+				// 播放音乐
+				playMusic(url)
+			} else {
+				console.error('获取播放地址失败：无有效URL')
+				state.loading = false
+			}
+		}
+	} catch (error) {
+		// 检查是否是最新的请求
+		if (requestId !== currentPlayId) {
+			console.log('有新的播放请求，忽略错误')
+			return
+		}
+		
+		console.error('播放歌曲失败:', error)
+		state.loading = false
+	}
+}
+
+// 获取歌词
+const fetchLyric = async (id) => {
+	try {
+		const res = await getLyric(id)
+		if (res.code === 200 && res.lrc && res.lrc.lyric) {
+			state.lyrics = parseLyric(res.lrc.lyric)
+		}
+	} catch (error) {
+		console.error('获取歌词失败:', error)
+	}
+}
+
+// 获取评论数量
+const fetchCommentCount = async (id) => {
+	try {
+		// 只获取1条评论，主要是为了获取total字段
+		const res = await getSongComment(id, 1, 0)
+		if (res.code === 200) {
+			state.commentCount = res.total || 0
+		}
+	} catch (error) {
+		console.error('获取评论数量失败:', error)
+		state.commentCount = 0
+	}
+}
+
+// 解析歌词（LRC格式）
+const parseLyric = (lrcText) => {
+	if (!lrcText) return []
+	
+	const lines = lrcText.split('\n')
+	const lyrics = []
+	// 匹配 [mm:ss.xx] 或 [mm:ss:xx] 格式
+	const timeRegex = /\[(\d{2}):(\d{2})[.:](\d{2,3})\]/g
+	
+	for (const line of lines) {
+		// 获取所有时间标签
+		const times = []
+		let match
+		while ((match = timeRegex.exec(line)) !== null) {
+			const minutes = parseInt(match[1])
+			const seconds = parseInt(match[2])
+			const milliseconds = parseInt(match[3])
+			// 转换为秒数
+			const time = minutes * 60 + seconds + milliseconds / (match[3].length === 3 ? 1000 : 100)
+			times.push(time)
+		}
+		
+		// 获取歌词文本（移除时间标签）
+		const text = line.replace(/\[\d{2}:\d{2}[.:]\d{2,3}\]/g, '').trim()
+		
+		// 添加歌词
+		if (text) {
+			for (const time of times) {
+				lyrics.push({ time, text })
+			}
+		}
+	}
+	
+	// 按时间排序
+	lyrics.sort((a, b) => a.time - b.time)
+	
+	return lyrics
+}
+
+// 更新当前歌词索引
+const updateCurrentLyricIndex = () => {
+	const { lyrics, currentTime } = state
+	if (!lyrics.length) return
+	
+	// 查找当前时间对应的歌词
+	let index = 0
+	for (let i = 0; i < lyrics.length; i++) {
+		if (lyrics[i].time <= currentTime) {
+			index = i
+		} else {
+			break
+		}
+	}
+	
+	if (state.currentLyricIndex !== index) {
+		state.currentLyricIndex = index
+	}
+}
+
+// 播放音乐（通过URL）
+const playMusic = (url) => {
+	AudioPlayerManager.safePlay(url)
+}
+
+// 播放/暂停切换
+const togglePlay = () => {
+	if (AudioPlayerManager.isPlaying) {
+		AudioPlayerManager.pause()
+	} else {
+		if (state.songUrl) {
+			AudioPlayerManager.resume()
+		}
+	}
+}
+
+// 播放
+const play = () => {
+	if (state.songUrl) {
+		AudioPlayerManager.resume()
+	}
+}
+
+// 暂停
+const pause = () => {
+	AudioPlayerManager.pause()
+}
+
+// 停止
+const stop = () => {
+	AudioPlayerManager.stop()
+	state.currentTime = 0
+}
+
+// 跳转到指定时间
+const seekTo = (time) => {
+	AudioPlayerManager.seek(time)
+	state.currentTime = time
+}
+
+// 设置进度（百分比 0-100）
+const setProgress = (percent) => {
+	if (!state.duration) return
+	const time = (percent / 100) * state.duration
+	seekTo(time)
+}
+
+// 导出
+export const useMusicStore = () => {
+	return {
+		state,
+		songName,
+		artistNames,
+		albumCover,
+		progress,
+		currentTimeStr,
+		durationStr,
+		commentCountStr,
+		playSongById,
+		togglePlay,
+		play,
+		pause,
+		stop,
+		seekTo,
+		setProgress
+	}
+}
+
+export default {
+	state,
+	songName,
+	artistNames,
+	albumCover,
+	progress,
+	currentTimeStr,
+	durationStr,
+	commentCountStr,
+	playSongById,
+	togglePlay,
+	play,
+	pause,
+	stop,
+	seekTo,
+	setProgress
+}

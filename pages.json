@@ -1,0 +1,88 @@
+{
+  "pages": [
+    {
+      "path": "pages/discovery/discovery",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "发现"
+      }
+    },
+    {
+      "path": "pages/roam/roam",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "漫游"
+      }
+    },
+    {
+      "path": "pages/my/my",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/community/community",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "云村"
+      }
+    },
+    {
+      "path": "pages/player/player",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "播放"
+      }
+    },
+    {
+      "path": "pages/playlist/playlist",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "歌单"
+      }
+    },
+    {
+      "path": "pages/search/search",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "搜索"
+      }
+    },
+    {
+      "path": "pages/search/result",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "搜索结果"
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "登录"
+      }
+    },
+    {
+      "path": "pages/video/video",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "视频"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "网易云音乐",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F5F5F5"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#EC4141",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": []
+  },
+  "uniIdRouter": {}
+}
