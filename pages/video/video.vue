@@ -1,5 +1,8 @@
 <template>
   <view class="video-player-page">
+    <!-- 状态栏占位块 -->
+    <view class="status_bar" />
+
     <!-- 顶部导航栏 -->
     <view class="top-navbar">
       <view class="nav-left" @click="goBack">
@@ -638,6 +641,11 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.status_bar {
+  height: var(--status-bar-height);
+  width: 100%;
+}
+
 .video-player-page {
   height: 100vh;
   display: flex;
@@ -650,7 +658,7 @@ export default {
     justify-content: space-between;
     align-items: center;
     height: 44px;
-    padding: 0 15px;
+    padding: 0 0;
     background-color: #fff;
     border-bottom: 1px solid #eee;
     position: relative;
@@ -672,6 +680,7 @@ export default {
     .nav-center {
       flex: 1;
       text-align: center;
+      margin-left: -10%;
       
       .nav-title {
         font-size: 17px;
