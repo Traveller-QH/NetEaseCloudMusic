@@ -190,11 +190,90 @@ export const getTopPlaylist = (cat = '全部', limit = 20, before) => {
 	return get('/top/playlist/highquality', { cat, limit, before })
 }
 
+/**
+ * 获取专辑动态信息
+ * @param {Number} id - 专辑 id
+ */
+export const getAlbumDetailDynamic = (id) => {
+	return get('/album/detail/dynamic', { id })
+}
+
+/**
+ * 收藏/取消收藏专辑
+ * @param {Number} id - 专辑 id
+ * @param {Number} t - 1 为收藏，其他为取消收藏
+ */
+export const toggleAlbumSub = (id, t = 1) => {
+	return get('/album/sub', { id, t })
+}
+
+/**
+ * 获取专辑简要百科信息
+ * @param {Number} id - 专辑 id
+ */
+export const getUgcAlbum = (id) => {
+	return get('/ugc/album/get', { id })
+}
+
+/**
+ * 获取专辑评论
+ * @param {Number} id - 专辑 id
+ * @param {Number} limit - 评论数量，默认 20
+ * @param {Number} offset - 偏移量，默认 0
+ */
+export const getAlbumComment = (id, limit = 20, offset = 0) => {
+	return get('/comment/album', { id, limit, offset })
+}
+
+/**
+ * 新版评论接口
+ * @param {Object} params - 请求参数
+ * @param {Number} params.id - 资源 id
+ * @param {Number} params.type - 资源类型（0:歌曲 1:MV 2:歌单 3:专辑 4:电台节目 5:视频 6:动态 7:电台）
+ * @param {Number} params.pageNo - 页码，默认 1
+ * @param {Number} params.pageSize - 每页数量，默认 20
+ * @param {Number} params.sortType - 排序方式（1:推荐 2:热度 3:时间）
+ * @param {Number} params.cursor - 分页游标
+ */
+export const getNewComment = (params) => {
+	const { id, type = 3, pageNo = 1, pageSize = 20, sortType = 1, cursor = null } = params
+	const queryParams = { id, type, pageNo, pageSize, sortType }
+	if (cursor) queryParams.cursor = cursor
+	return get('/comment/new', queryParams)
+}
+
+/**
+ * 楼层评论接口
+ * @param {Object} params - 请求参数
+ * @param {Number} params.parentCommentId - 父评论 ID
+ * @param {Number} params.id - 资源 id
+ * @param {Number} params.type - 资源类型（0:歌曲 1:MV 2:歌单 3:专辑 4:电台节目 5:视频 6:动态 7:电台）
+ * @param {Number} params.limit - 取出评论数量，默认 20
+ * @param {Number} params.time - 分页参数，取上一页最后一项的 time
+ */
+export const getFloorComment = (params) => {
+	const { parentCommentId, id, type = 3, limit = 20, time = null } = params
+	const queryParams = { parentCommentId, id, type, limit }
+	if (time) queryParams.time = time
+	return get('/comment/floor', queryParams)
+}
+
+/**
+ * 给评论点赞
+ * @param {Number} id - 资源 id
+ * @param {Number} cid - 评论 id
+ * @param {Number} t - 是否点赞（1:点赞，0:取消点赞）
+ * @param {Number} type - 资源类型（0:歌曲 1:MV 2:歌单 3:专辑 4:电台节目 5:视频 6:动态 7:电台）
+ */
+export const likeComment = (id, cid, t = 1, type = 3) => {
+	return get('/comment/like', { id, cid, t, type })
+}
+
 // ==================== 专辑相关接口 ====================
 
 /**
  * 获取专辑详情
- * @param {Number} id - 专辑id
+ * @param {Number} id - 专辑 id
  */
 export const getAlbum = (id) => {
 	return get('/album', { id })
@@ -202,7 +281,7 @@ export const getAlbum = (id) => {
 
 /**
  * 获取专辑所有歌曲
- * @param {Number} id - 专辑id
+ * @param {Number} id - 专辑 id
  */
 export const getAlbumSongs = (id) => {
 	return get('/album/track/all', { id })
@@ -496,6 +575,9 @@ export default {
 	// 专辑
 	getAlbum,
 	getAlbumSongs,
+	getAlbumDetailDynamic,
+	toggleAlbumSub,
+	getUgcAlbum,
 	// 电台
 	getDjRadio,
 	getDjProgram,
@@ -518,6 +600,11 @@ export default {
 	// 评论
 	getSongComment,
 	getPlaylistComment,
+	getAlbumComment,
+	getNewComment,
+	likeComment,
+	postNewComment,
+	deleteComment,
 	// 视频
 	getVideoUrl,
 	getVideoDetailInfo,
