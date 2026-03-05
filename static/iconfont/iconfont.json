@@ -6,6 +6,34 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "14478390",
+      "name": "关  闭",
+      "font_class": "guanbi",
+      "unicode": "e61a",
+      "unicode_decimal": 58906
+    },
+    {
+      "icon_id": "997403",
+      "name": "成功",
+      "font_class": "chenggong",
+      "unicode": "e61b",
+      "unicode_decimal": 58907
+    },
+    {
+      "icon_id": "5968886",
+      "name": "删除",
+      "font_class": "shanchu",
+      "unicode": "e669",
+      "unicode_decimal": 58985
+    },
+    {
+      "icon_id": "45914063",
+      "name": "收藏 为收藏2",
+      "font_class": "a-shoucangweishoucang2",
+      "unicode": "e68a",
+      "unicode_decimal": 59018
+    },
+    {
       "icon_id": "1183023",
       "name": "刷新",
       "font_class": "shuaxin1",
