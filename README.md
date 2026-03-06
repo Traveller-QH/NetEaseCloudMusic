@@ -158,7 +158,7 @@ NetEaseCloudMusic/
 
 特此感谢为本项目提供支持与灵感的项目：
 
-- **[NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi)** - 本项目使用的网易云音乐 API 服务
+- **[NeteaseCloudMusicApi](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced)** - 本项目使用的网易云音乐 API 服务
 
 ## 📢 免责声明
 
