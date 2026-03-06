@@ -60,6 +60,11 @@
             <text class="user-name">{{ comment.user?.nickname || comment.user?.userName || '未知用户' }}</text>
             <text class="comment-time">{{ formatCommentTime(comment.time) }}</text>
           </view>
+          <view class="comment-actions" v-if="comment.owner">
+            <view class="action-btn delete-btn" @click.stop="deleteCommentFunc(comment)">
+              <i class="iconfont icon-shanchu"/>
+            </view>
+          </view>
           <view class="like-btn" @click.stop="toggleLike(comment)">
             <i class="iconfont" :class="comment.liked ? 'icon-dianzan liked' : 'icon-dianzan'"/>
             <text class="like-count">{{ comment.likedCount || 0 }}</text>
@@ -204,6 +209,11 @@
               <view class="user-info">
                 <text class="user-name">{{ comment.user?.nickname || '未知用户' }}</text>
                 <text class="comment-time">{{ formatCommentTime(comment.time) }}</text>
+              </view>
+              <view class="comment-actions" v-if="comment.owner">
+                <view class="action-btn delete-btn" @click.stop="deleteFloorCommentFunc(comment)">
+                  <i class="iconfont icon-shanchu"/>
+                </view>
               </view>
               <view class="like-btn" @click.stop="toggleFloorLike(comment)">
                 <i class="iconfont" :class="comment.liked ? 'icon-dianzan liked' : 'icon-dianzan'"/>
@@ -672,6 +682,90 @@ const toggleFloorLike = async (comment) => {
   }
 }
 
+// 删除主评论
+const deleteCommentFunc = async (comment) => {
+  uni.showModal({
+    title: '确认删除',
+    content: '确定要删除这条评论吗？',
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          const deleteRes = await deleteComment(0, 3, parseInt(albumId.value), comment.commentId)
+          if (deleteRes.code === 200) {
+            uni.showToast({
+              title: '删除成功',
+              icon: 'success'
+            })
+            // 重新加载评论列表
+            await fetchComments(false)
+          } else {
+            uni.showToast({
+              title: deleteRes.message || '删除失败',
+              icon: 'none'
+            })
+          }
+        } catch (error) {
+          console.error('删除评论失败:', error)
+          uni.showToast({
+            title: '删除失败',
+            icon: 'none'
+          })
+        }
+      }
+    }
+  })
+}
+
+// 删除楼层评论
+const deleteFloorCommentFunc = async (comment) => {
+  uni.showModal({
+    title: '确认删除',
+    content: '确定要删除这条回复吗？',
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          const deleteRes = await deleteComment(0, 3, parseInt(albumId.value), comment.commentId)
+          if (deleteRes.code === 200) {
+            uni.showToast({
+              title: '删除成功',
+              icon: 'success'
+            })
+            
+            // 判断当前回复数量
+            const remainingCount = floorCommentsList.value.length - 1
+            
+            // 如果只剩楼主的评论（回复数为 0），直接关闭弹窗
+            if (remainingCount <= 0) {
+              closeFloorComment()
+              // 刷新主评论列表
+              await fetchComments(false)
+            } else {
+              // 重新加载楼层评论，保证数据实时性
+              floorTime.value = null
+              floorCommentsList.value = []
+              floorHasMore.value = true
+              await fetchFloorComments()
+              // 同时刷新主评论列表
+              await fetchComments(false)
+            }
+          } else {
+            uni.showToast({
+              title: deleteRes.message || '删除失败',
+              icon: 'none'
+            })
+          }
+        } catch (error) {
+          console.error('删除回复失败:', error)
+          uni.showToast({
+            title: '删除失败',
+            icon: 'none'
+          })
+        }
+      }
+    }
+  })
+}
+
 // 分享
 const handleShare = () => {
   uni.showShareMenu({
@@ -900,6 +994,29 @@ onMounted(async () => {
           font-size: 20rpx;
           color: #999;
           margin-top: 4rpx;
+        }
+      }
+
+      .comment-actions {
+        display: flex;
+        align-items: center;
+        margin-right: 20rpx;
+
+        .action-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          .iconfont {
+            font-size: 36rpx;
+            color: #999;
+          }
+        }
+
+        .delete-btn {
+          &:active {
+            opacity: 0.6;
+          }
         }
       }
     }
@@ -1184,6 +1301,10 @@ onMounted(async () => {
 .owner-comment .like-btn .iconfont {
   font-size: 36rpx;
   color: #999;
+  
+  &.liked {
+    color: #EC4141;
+  }
 }
 
 .floor-comment-item .like-btn .like-count,
