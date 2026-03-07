@@ -15,7 +15,7 @@
           <input 
             class="search-input" 
             v-model="searchKeyword" 
-            :placeholder="defaultKeyword || '搜索歌曲、歌手、专辑'"
+            :placeholder="placeholderText"
             @confirm="performSearch"
             confirm-type="search"
             :focus="true"
@@ -23,7 +23,7 @@
         </view>
       </view>
       
-      <view class="nav-right" @click="performSearch" v-if="searchKeyword.trim()">
+      <view class="nav-right" @click="performSearch">
         <text class="search-btn-text">搜索</text>
       </view>
     </view>
@@ -103,6 +103,7 @@ import { search, getSearchDefault, getSearchHot } from '@/utils/api.js'
 // 数据
 const searchKeyword = ref('')
 const defaultKeyword = ref('')
+const placeholderText = ref('')
 const searchHistory = ref([])
 const hotSearchList = ref([])
 const contentHeight = ref(0)
@@ -114,14 +115,13 @@ const getDefaultKeyword = async () => {
     const res = await getSearchDefault()
     if (res && res.code === 200) {
       defaultKeyword.value = res.data?.realkeyword || ''
-      // 如果搜索框为空，使用默认关键词
-      if (!searchKeyword.value) {
-        searchKeyword.value = defaultKeyword.value
-      }
+      // 将默认关键词设置为 placeholder
+      placeholderText.value = defaultKeyword.value || '搜索歌曲、歌手、专辑'
     }
   } catch (error) {
     console.error('获取默认搜索关键词失败:', error)
     // 即使请求失败，也不影响页面基本功能
+    placeholderText.value = '搜索歌曲、歌手、专辑'
   }
 }
 
@@ -179,7 +179,6 @@ const performSearch = () => {
   if (!keyword) {
     // 如果没有输入关键词，使用默认关键词
     if (defaultKeyword.value) {
-      searchKeyword.value = defaultKeyword.value
       doSearch(defaultKeyword.value)
     }
     return
