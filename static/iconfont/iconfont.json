@@ -6,6 +6,34 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "4430855",
+      "name": "屏蔽",
+      "font_class": "pingbi",
+      "unicode": "e64b",
+      "unicode_decimal": 58955
+    },
+    {
+      "icon_id": "10156208",
+      "name": "拉黑",
+      "font_class": "lahei",
+      "unicode": "e627",
+      "unicode_decimal": 58919
+    },
+    {
+      "icon_id": "11344407",
+      "name": "私信",
+      "font_class": "sixin",
+      "unicode": "e628",
+      "unicode_decimal": 58920
+    },
+    {
+      "icon_id": "20406877",
+      "name": "异常_危险_举报",
+      "font_class": "yichang_weixian_jubao",
+      "unicode": "e799",
+      "unicode_decimal": 59289
+    },
+    {
       "icon_id": "243749",
       "name": "三点菜单",
       "font_class": "sandiancaidan",
