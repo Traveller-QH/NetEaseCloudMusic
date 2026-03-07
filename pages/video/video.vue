@@ -16,37 +16,42 @@
       </view>
     </view>
 
-    <!-- 主内容区域 - 可滚动 -->
-    <scroll-view class="main-content" scroll-y>
-      <!-- 视频播放区域 - 固定在顶部导航下方 -->
-      <view class="video-container">
-        <video 
-          id="myVideo" 
-          class="video-player" 
-          :src="videoUrl" 
-          :controls="true"
-          :autoplay="false"
-          :loop="false"
-          :muted="false"
-          @play="onVideoPlay"
-          @pause="onVideoPause"
-          @ended="onVideoEnded"
-          @error="onVideoError"
-          object-fit="contain"
-          v-if="videoUrl"
-        ></video>
-        
-        <!-- 视频加载失败时的占位符 -->
-        <view class="video-placeholder" v-else>
-          <view class="placeholder-content">
-            <i class="iconfont icon-shipin" style="font-size: 60px; color: #ccc;" />
-            <text class="placeholder-text">视频加载失败</text>
-            <text class="placeholder-subtext">请检查网络连接或稍后再试</text>
-            <button class="refresh-btn" @click="refreshVideo">重新加载</button>
-          </view>
+    <!-- 视频播放区域 - 固定在导航栏下方 -->
+    <view class="video-container-fixed">
+      <video 
+        id="myVideo" 
+        class="video-player" 
+        :src="videoUrl" 
+        :controls="true"
+        :autoplay="false"
+        :loop="false"
+        :muted="false"
+        @play="onVideoPlay"
+        @pause="onVideoPause"
+        @ended="onVideoEnded"
+        @error="onVideoError"
+        object-fit="contain"
+        v-if="videoUrl"
+      ></video>
+      
+      <!-- 视频加载失败时的占位符 -->
+      <view class="video-placeholder" v-else>
+        <view class="placeholder-content">
+          <i class="iconfont icon-shipin" style="font-size: 60px; color: #ccc;" />
+          <text class="placeholder-text">视频加载失败</text>
+          <text class="placeholder-subtext">请检查网络连接或稍后再试</text>
+          <button class="refresh-btn" @click="refreshVideo">重新加载</button>
         </view>
       </view>
+    </view>
 
+    <!-- 主内容区域 - 可滚动 -->
+    <scroll-view 
+      class="main-content" 
+      scroll-y
+      @scrolltolower="loadMoreComments"
+      :lower-threshold="100"
+    >
       <!-- 视频信息区域 -->
       <view class="video-info">
         <text class="video-title">{{ mvDetail.name || videoInfo.title || videoInfo.name || 'MV 标题' }}</text>
@@ -1058,63 +1063,69 @@ onMounted(async () => {
     }
   }
 
-  // 主内容区域
-  .main-content {
-    flex: 1;
-    overflow-y: auto;
-    
-    // 视频播放区域
-    .video-container {
-      width: 100%;
-      height: 240px;
-      background-color: #000;
-      position: relative;
+  // 视频播放区域 - 固定（在 scroll-view 外部）
+  .video-container-fixed {
+    width: 100%;
+    height: 240px;
+    background-color: #000;
+    position: fixed;
+    top: calc(var(--status-bar-height) + 88rpx); // 状态栏 + 导航栏高度
+    left: 0;
+    right: 0;
+    z-index: 100;
+    flex-shrink: 0;
 
-      .video-player {
-        width: 100%;
-        height: 100%;
-      }
+    .video-player {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .video-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #000;
       
-      .video-placeholder {
-        width: 100%;
-        height: 100%;
+      .placeholder-content {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        background-color: #000;
+        color: #ccc;
+        text-align: center;
         
-        .placeholder-content {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          color: #ccc;
-          text-align: center;
-          
-          .placeholder-text {
-            font-size: 16px;
-            margin-top: 10px;
-          }
-          
-          .placeholder-subtext {
-            font-size: 12px;
-            margin-top: 5px;
-            color: #999;
-          }
-          
-          .refresh-btn {
-            margin-top: 15px;
-            padding: 8px 20px;
-            background-color: #ec4141;
-            color: #fff;
-            border-radius: 20px;
-            font-size: 14px;
-            border: none;
-          }
+        .placeholder-text {
+          font-size: 16px;
+          margin-top: 10px;
+        }
+        
+        .placeholder-subtext {
+          font-size: 12px;
+          margin-top: 5px;
+          color: #999;
+        }
+        
+        .refresh-btn {
+          margin-top: 15px;
+          padding: 8px 20px;
+          background-color: #ec4141;
+          color: #fff;
+          border-radius: 20px;
+          font-size: 14px;
+          border: none;
         }
       }
     }
+  }
 
+  // 主内容区域 - 需要添加上边距避免被固定的视频遮挡
+  .main-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-top: 240px; // 视频播放器高度
+    
     // 视频信息区域
     .video-info {
       padding: 15px;
