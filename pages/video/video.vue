@@ -173,7 +173,7 @@
           
           <!-- 回复按钮 -->
           <view class="reply-btn-wrapper" v-if="comment.showFloorComment?.replyCount > 0" @click="openFloorComment(comment)">
-            <text class="reply-btn-text">{{ comment.showFloorComment?.replyCount || 0 }}条回复</text>
+            <text class="reply-btn-text">{{ comment.showFloorComment?.replyCount || 0 }}条回复<i class="iconfont icon-arrow-right reply-btn-icon" /></text>
           </view>
         </view>
 
@@ -1590,7 +1590,7 @@ onMounted(async () => {
 .popup-content {
   position: relative;
   width: 100%;
-  height: 85vh;
+  height: 55vh;
   background-color: #f5f5f5;
   border-radius: 24rpx 24rpx 0 0;
   display: flex;
@@ -1685,6 +1685,10 @@ onMounted(async () => {
 .sort-btn .iconfont {
   font-size: 24rpx;
   color: #666;
+}
+
+.reply-btn-icon {
+  font-size: 24rpx;
 }
 
 /* 楼层评论列表 */
