@@ -30,9 +30,9 @@
       
       <!-- 基础信息 -->
       <view class="artist-stats">
-        <text class="stat-item">{{ artistInfo.user?.followed ? '已关注' : formatCount(artistInfo.artist?.identify?.imageDesc ? 0 : 0) }} 关注</text>
+        <text class="stat-item">{{ followCnt }} 关注</text>
         <text class="stat-divider">|</text>
-        <text class="stat-item">{{ formatCount(followCount) }} 粉丝</text>
+        <text class="stat-item">{{ formatCount(fansCnt) }} 粉丝</text>
         <text class="stat-divider">|</text>
         <text class="stat-item">IP 属地 {{ getIpLocation(artistInfo.user) }}</text>
       </view>
@@ -90,13 +90,20 @@
 
         <!-- 艺人百科卡片 -->
         <view class="section-card" v-if="artistWiki" @click="showWikiDetail = true">
-          <view class="card-header-mini">
-            <text class="card-title-mini">艺人百科 ></text>
+          <view class="card-header">
+            <text class="card-title">艺人百科<i class="iconfont icon-arrow-right" /></text>
           </view>
           <view class="wiki-content">
             <text class="wiki-artist-name">{{ artistInfo.artist?.name }}</text>
-            <text class="wiki-gender-zodiac">{{ artistWiki.gender }}/{{ artistWiki.zodiac }}</text>
-            <text class="wiki-desc">{{ artistWiki.briefDesc || artistWiki.introduction }}</text>
+            <text class="wiki-gender-zodiac">
+              {{ artistInfo.user.gender === 1 ? '男' : '女' }}
+              {{
+                getZodiacSign(extractBirthdayFromDesc(artistWiki.desc))
+                    ? '/' + getZodiacSign(extractBirthdayFromDesc(artistWiki.desc))
+                    : ''
+              }}
+            </text>
+            <text class="wiki-desc">{{ artistWiki.desc || artistWiki.briefDesc || artistWiki.introduction }}</text>
           </view>
         </view>
       </view>
@@ -192,7 +199,7 @@
             @click="playVideo(video)"
           >
             <view class="video-thumb">
-              <image :src="video.cover || video.picUrl" class="video-cover" mode="aspectFill" />
+              <image :src="video.imgurl || video.cover || video.picUrl" class="video-cover" mode="aspectFill" />
               <view class="video-duration">{{ formatDuration(video.duration || video.playTime) }}</view>
             </view>
             <view class="video-info">
@@ -313,21 +320,28 @@
               <text class="info-label">音乐身份：</text>
               <text class="info-value">{{ formatMusicIdentities(artistInfo.secondaryExpertIdentiy) }}</text>
             </view>
-            <view class="info-row" v-if="artistWiki?.gender">
+            <view class="info-row" v-if="artistInfo.user?.gender">
               <text class="info-label">性别：</text>
-              <text class="info-value">{{ artistWiki.gender }}</text>
+              <text class="info-value">{{ artistInfo.user.gender===1 ? '男' : '女' }}</text>
             </view>
             <view class="info-row" v-if="artistWiki?.school">
               <text class="info-label">学校：</text>
               <text class="info-value">{{ artistWiki.school }}</text>
             </view>
-            <view class="info-row" v-if="artistWiki?.area">
+            <view class="info-row" v-if="artistInfo?.user">
               <text class="info-label">地区：</text>
-              <text class="info-value">{{ artistWiki.area }}</text>
+              <text class="info-value">{{ getIpLocation(artistInfo.user) }}</text>
             </view>
-            <view class="info-row" v-if="artistWiki?.birthday">
+            <view class="info-row" v-if="artistWiki?.desc">
               <text class="info-label">生日：</text>
-              <text class="info-value">{{ artistWiki.birthday }}</text>
+              <text class="info-value">
+                {{ extractBirthdayFromDesc(artistWiki.desc) }}
+                {{
+                  getZodiacSign(extractBirthdayFromDesc(artistWiki.desc))
+                      ? getZodiacSign(extractBirthdayFromDesc(artistWiki.desc))
+                      : ''
+                }}
+              </text>
             </view>
             <view class="info-row" v-if="artistWiki?.nation">
               <text class="info-label">民族：</text>
@@ -342,7 +356,7 @@
             <text class="info-card-title">艺人简介</text>
           </view>
           <view class="info-card-content">
-            <text class="intro-text">{{ artistWiki.briefDesc || artistWiki.introduction }}</text>
+            <text class="intro-text">{{ artistWiki.desc || artistWiki.briefDesc || artistWiki.introduction }}</text>
           </view>
         </view>
       </view>
@@ -373,8 +387,14 @@ const artistId = ref('')
 // 歌手信息
 const artistInfo = ref(null)
 
+// 粉丝数（对象，包含关注数和粉丝数）
+const followCount = ref(null)
+
 // 粉丝数
-const followCount = ref(0)
+const fansCnt = ref(0)
+
+// 关注数
+const followCnt = ref(0)
 
 // 歌手百科
 const artistWiki = ref(null)
@@ -447,7 +467,7 @@ const getIpLocation = (user) => {
       120000: '天津',
       310000: '上海',
       500000: '重庆',
-      710000: '台湾',
+      710000: '台湾 台北',
       810000: '香港',
       820000: '澳门'
     }
@@ -463,12 +483,89 @@ const getIpLocation = (user) => {
   return '未知'
 }
 
+// 获取生日
+const extractBirthdayFromDesc= (desc) => {
+  if (!desc) return null
+
+  // 匹配 “xxxx年xx月xx日出生于” 或 “xxxx年xx月xx日出生”（允许中间有空格）
+  const regex = /(\d{4})年(\d{1,2})月(\d{1,2})日\s*出生于?/
+  const match = desc.match(regex)
+
+  if (match) {
+    const year = match[1]
+    const month = match[2].padStart(2, '0')
+    const day = match[3].padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  return null
+}
+
+// 获取星座
+const getZodiacSign = (birthday) => {
+  if (!birthday) return ''
+
+  const parts = birthday.split('-')
+  if (parts.length !== 3) return ''
+
+  const month = parseInt(parts[1], 10)
+  const day = parseInt(parts[2], 10)
+  if (isNaN(month) || isNaN(day) || month < 1 || month > 12 || day < 1 || day > 31) return ''
+
+  // 星座范围定义 [起始月, 起始日, 结束月, 结束日, 名称]
+  const signs = [
+    [1, 20, 2, 18, '水瓶座'],
+    [2, 19, 3, 20, '双鱼座'],
+    [3, 21, 4, 19, '白羊座'],
+    [4, 20, 5, 20, '金牛座'],
+    [5, 21, 6, 21, '双子座'],
+    [6, 22, 7, 22, '巨蟹座'],
+    [7, 23, 8, 22, '狮子座'],
+    [8, 23, 9, 22, '处女座'],
+    [9, 23, 10, 23, '天秤座'],
+    [10, 24, 11, 22, '天蝎座'],
+    [11, 23, 12, 21, '射手座'],
+    [12, 22, 1, 19, '摩羯座'] // 跨年星座
+  ]
+
+  for (const [sMonth, sDay, eMonth, eDay, name] of signs) {
+    // 将日期转换为“月.日”的数值形式方便比较（例如 6.04 表示为 6.04）
+    const birthdayValue = month + day / 100
+    const startValue = sMonth + sDay / 100
+    // 处理跨年情况（摩羯座）
+    if (sMonth > eMonth) {
+      // 跨年范围：从 start 到 12.31 或 1.1 到 end
+      if (birthdayValue >= startValue || birthdayValue <= (eMonth + eDay / 100)) {
+        return name
+      }
+    } else {
+      // 普通范围
+      if (birthdayValue >= startValue && birthdayValue <= (eMonth + eDay / 100)) {
+        return name
+      }
+    }
+  }
+
+  return ''
+}
+
 // 格式化数量
 const formatCount = (count) => {
-  if (count === undefined || count === null) return '0'
+  if (!count) return '0'
   count = Number(count)
   if (count >= 10000) {
-    return (count / 10000).toFixed(1) + '万'
+    // 计算万位数，不四舍五入保留一位小数
+    const tenThousand = count / 10000
+    // 取整数部分和小数第一位（截断）
+    const integerPart = Math.floor(tenThousand)                     // 整数部分
+    const decimalPart = Math.floor((tenThousand - integerPart) * 10) // 小数第一位（0-9）
+
+    // 组合结果：如果小数部分为0，只显示整数；否则显示一位小数
+    if (decimalPart === 0) {
+      return integerPart + '万'
+    } else {
+      return integerPart + '.' + decimalPart + '万'
+    }
   }
   return count.toString()
 }
@@ -478,7 +575,18 @@ const formatPlayCount = (count) => {
   if (!count) return '0'
   count = Number(count)
   if (count >= 10000) {
-    return (count / 10000).toFixed(0)
+    // 计算万位数，不四舍五入保留一位小数
+    const tenThousand = count / 10000
+    // 取整数部分和小数第一位（截断）
+    const integerPart = Math.floor(tenThousand)                     // 整数部分
+    const decimalPart = Math.floor((tenThousand - integerPart) * 10) // 小数第一位（0-9）
+
+    // 组合结果：如果小数部分为0，只显示整数；否则显示一位小数
+    if (decimalPart === 0) {
+      return integerPart + '万'
+    } else {
+      return integerPart + '.' + decimalPart + '万'
+    }
   }
   return count.toString()
 }
@@ -541,7 +649,11 @@ const fetchFollowCount = async () => {
   try {
     const res = await getArtistFollowCount(artistId.value)
     if (res.code === 200) {
-      followCount.value = res.count || 0
+      followCount.value = res.data
+    }
+    if (followCount.value) {
+      fansCnt.value = followCount.value.fansCnt
+      followCnt.value = followCount.value.followCnt
     }
   } catch (error) {
     console.error('获取粉丝数失败:', error)
