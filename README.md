@@ -133,7 +133,7 @@ npm run build:h5
 npm run build:app
 ```
 
-## 技术架构
+## ⚙️ 技术架构
 
 ```
 NetEaseCloudMusic/
