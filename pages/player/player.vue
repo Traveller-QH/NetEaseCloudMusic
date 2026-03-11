@@ -105,6 +105,7 @@
 		<view class="action-wrapper">
 			<view class="action-item">
 				<i class="iconfont icon-xihuan1 action-icon" />
+				<text class="action-badge" v-if="musicStore.state.redCount > 0">{{ musicStore.redCountStr.value }}</text>
 			</view>
 			<view class="action-item">
 				<i class="iconfont icon-xiazai action-icon" />
