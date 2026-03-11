@@ -42,7 +42,7 @@
 			</view>
 			<!-- 唱片 -->
 			<view class="disc-container">
-				<view class="disc" :class="{ rotating: musicStore.state.isPlaying }">
+				<view class="disc" :style="discStyle">
 					<view class="disc-outer"></view>
 					<view class="disc-inner">
 						<view class="cover-wrapper">
@@ -114,7 +114,7 @@
 				<i class="iconfont icon-pinglun action-icon" />
 				<text class="action-badge" v-if="musicStore.state.commentCount > 0">{{ musicStore.commentCountStr.value }}</text>
 			</view>
-			<view class="action-item">
+			<view class="action-item" @click="showMoreMenu = true">
 				<i class="iconfont icon-gengduo action-icon" />
 			</view>
 		</view>
@@ -141,13 +141,191 @@
 		<!-- 底部安全区 -->
 		<view class="safe-bottom"></view>
 	</view>
+
+	<!-- 更多选项弹窗 -->
+	<u-popup v-model:show="showMoreMenu" mode="bottom" :round="20">
+		<view class="more-menu">
+			<!-- 歌曲信息头部 -->
+			<view class="menu-header">
+				<image v-if="musicStore.albumCover.value" class="menu-cover" :src="musicStore.albumCover.value" mode="aspectFill"></image>
+				<i v-else class="iconfont icon-yinle menu-cover-icon" />
+				<view class="menu-info">
+					<text class="menu-song-name">{{ musicStore.songName.value || '未知歌曲' }}</text>
+					<text class="menu-artist-name">{{ musicStore.artistNames.value || '未知歌手' }}</text>
+				</view>
+			</view>
+
+			<!-- 分割线 -->
+			<view class="menu-divider"></view>
+
+			<!-- 功能选项 -->
+			<view class="menu-options">
+				<view class="menu-option" @click="handleToggleLike">
+					<i class="iconfont menu-icon" :class="musicStore.state.isLiked ? 'icon-xihuan' : 'icon-xihuan1'" :style="{ color: musicStore.state.isLiked ? '#EC4141' : '' }" />
+					<text class="menu-text">收藏</text>
+				</view>
+				<view class="menu-option">
+					<i class="iconfont menu-icon icon-xiazai" />
+					<text class="menu-text">下载</text>
+				</view>
+				<view class="menu-option">
+					<i class="iconfont menu-icon icon-fenxiang1" />
+					<text class="menu-text">分享</text>
+				</view>
+			</view>
+
+			<!-- 分割线 -->
+			<view class="menu-divider"></view>
+
+			<!-- 专辑和歌手 -->
+			<view class="menu-options">
+				<view class="menu-option" @click="navigateToAlbum">
+					<i class="iconfont menu-icon icon-vynil" />
+					<text class="menu-text">专辑：{{ albumName }}</text>
+				</view>
+				<view class="menu-option" @click="navigateToArtist">
+					<i class="iconfont menu-icon icon-yingyonggongzuotai-yishujiafuwugongzuotai-jieshaorenziliao" />
+					<text class="menu-text">歌手：{{ firstArtistName }}</text>
+				</view>
+			</view>
+
+			<!-- 分割线 -->
+			<view class="menu-divider"></view>
+
+			<!-- 音质选项 -->
+			<view class="menu-options">
+				<view class="menu-option" @click="openQualitySelector">
+					<i class="iconfont menu-icon icon-zengqiangduijiangyinzhi" />
+					<text class="menu-text">音质：{{ currentQualityName }}</text>
+				</view>
+			</view>
+		</view>
+		</u-popup>
+
+	<!-- 音质选择弹窗 -->
+	<u-popup v-model:show="showQualitySelector" mode="bottom" :round="20">
+		<view class="quality-selector">
+			<!-- 标题 -->
+			<view class="quality-title">
+				<text class="quality-title-text">当前歌曲音质</text>
+			</view>
+
+			<!-- 音质列表 -->
+			<scroll-view scroll-y class="quality-list">
+				<view
+					v-for="(quality, index) in musicStore.state.availableQualities"
+					:key="quality.level"
+					class="quality-item"
+					:class="{ active: musicStore.state.currentQuality === quality.level }"
+					@click="selectQuality(quality.level)"
+				>
+					<!-- 音质图标 -->
+					<view class="quality-icon-wrapper" :style="{ background: getQualityIconColor(quality.level) }">
+						<text class="quality-icon-text">{{ quality.icon }}</text>
+					</view>
+
+					<!-- 音质信息 -->
+					<view class="quality-info">
+						<text class="quality-name">{{ quality.name }}</text>
+						<text class="quality-desc">{{ quality.description }}</text>
+					</view>
+
+					<!-- 选中标志 -->
+					<view v-if="musicStore.state.currentQuality === quality.level" class="quality-checkmark">
+						<i class="iconfont icon-duigou" />
+					</view>
+				</view>
+			</scroll-view>
+		</view>
+	</u-popup>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue'
 import { useMusicStore } from '@/utils/musicStore.js'
 
 const musicStore = useMusicStore()
+
+// 旋转动画相关
+const discRotation = ref(0)
+const lastUpdateTime = ref(0)
+const timerId = ref(null)
+const isRotating = ref(false)
+
+// 计算唱片的旋转样式
+const discStyle = computed(() => {
+	return {
+		transform: `rotate(${discRotation.value}deg)`
+	}
+})
+
+// 更新旋转角度
+const updateRotation = () => {
+	if (!isRotating.value) return
+	
+	const now = Date.now()
+	const deltaTime = (now - lastUpdateTime.value) / 1000 // 转换为秒
+	lastUpdateTime.value = now
+	
+	// 每秒旋转 18 度（20 秒一圈）
+	discRotation.value = (discRotation.value + deltaTime * 18) % 360
+	
+	// 使用 setTimeout 模拟 requestAnimationFrame（兼容性更好）
+	timerId.value = setTimeout(updateRotation, 16) // 约 60fps
+}
+
+// 开始旋转
+const startRotating = () => {
+	if (isRotating.value) return
+	isRotating.value = true
+	lastUpdateTime.value = Date.now()
+	updateRotation()
+}
+
+// 停止旋转
+const stopRotating = () => {
+	isRotating.value = false
+	if (timerId.value) {
+		clearTimeout(timerId.value)
+		timerId.value = null
+	}
+}
+
+// 监听播放状态变化
+watch(
+	() => musicStore.state.isPlaying,
+	(newVal) => {
+		if (newVal) {
+			startRotating()
+		} else {
+			stopRotating()
+		}
+	},
+	{ immediate: true }
+)
+
+// 页面卸载时清理
+onUnmounted(() => {
+	stopRotating()
+})
+
+// 弹窗显示状态
+const showMoreMenu = ref(false)
+const showQualitySelector = ref(false)
+
+// 计算属性
+const albumName = computed(() => {
+	return musicStore.state.currentSong?.al?.name || '未知专辑'
+})
+
+const firstArtistName = computed(() => {
+	const artists = musicStore.state.currentSong?.ar || musicStore.state.currentSong?.artists || []
+	return artists.length > 0 ? artists[0].name : '未知歌手'
+})
+
+const currentQualityName = computed(() => {
+	return musicStore.getQualityName(musicStore.state.currentQuality) || '标准'
+})
 
 // 是否需要滚动（通过DOM检测实际宽度）
 const songNameNeedScroll = ref(false)
@@ -345,6 +523,97 @@ const handleBack = () => {
 	}
 }
 
+// 打开音质选择器
+const openQualitySelector = () => {
+	showMoreMenu.value = false
+	showQualitySelector.value = true
+}
+
+// 选择音质
+const selectQuality = async (level) => {
+	if (level === musicStore.state.currentQuality) return
+	
+	uni.showLoading({ title: '切换音质中...' })
+	
+	try {
+		const success = await musicStore.switchQuality(level)
+		uni.hideLoading()
+		
+		if (success) {
+			showQualitySelector.value = false
+			uni.showToast({
+				title: `已切换为${musicStore.getQualityName(level)}`,
+				icon: 'none',
+				duration: 1500
+			})
+		} else {
+			uni.showToast({
+				title: '切换失败，请重试',
+				icon: 'none',
+				duration: 1500
+			})
+		}
+	} catch (error) {
+		uni.hideLoading()
+		uni.showToast({
+			title: '切换失败，请重试',
+			icon: 'none',
+			duration: 1500
+		})
+	}
+}
+
+// 获取音质图标颜色
+const getQualityIconColor = (level) => {
+	const colors = {
+		'jymaster': 'linear-gradient(135deg, #FFD700, #FFA500)', // 金色 - 超清母带
+		'dolby': 'linear-gradient(135deg, #4169E1, #1E90FF)', // 蓝色 - 杜比全景音
+		'sky': 'linear-gradient(135deg, #9370DB, #8A2BE2)', // 紫色 - 沉浸环绕音
+		'jyeffect': 'linear-gradient(135deg, #00CED1, #20B2AA)', // 青色 - 高清臻音
+		'hires': 'linear-gradient(135deg, #FF6347, #FF4500)', // 橙红色 - 高解析度无损
+		'lossless': 'linear-gradient(135deg, #32CD32, #228B22)', // 绿色 - 无损
+		'exhigh': 'linear-gradient(135deg, #FF69B4, #FF1493)', // 粉红色 - 极高
+		'higher': 'linear-gradient(135deg, #87CEEB, #4682B4)', // 天蓝色 - 较高
+		'standard': 'linear-gradient(135deg, #808080, #696969)' // 灰色 - 标准
+	}
+	return colors[level] || colors['standard']
+}
+
+// 跳转到专辑页面
+const navigateToAlbum = () => {
+	const albumId = musicStore.state.currentSong?.al?.id
+	if (!albumId) {
+		uni.showToast({
+			title: '专辑信息不可用',
+			icon: 'none'
+		})
+		return
+	}
+	
+	showMoreMenu.value = false
+	uni.navigateTo({
+		url: `/pages/album/album?id=${albumId}`
+	})
+}
+
+// 跳转到歌手页面
+const navigateToArtist = () => {
+	const artists = musicStore.state.currentSong?.ar || musicStore.state.currentSong?.artists || []
+	if (!artists || artists.length === 0) {
+		uni.showToast({
+			title: '歌手信息不可用',
+			icon: 'none'
+		})
+		return
+	}
+	
+	const artistId = artists[0].id
+	showMoreMenu.value = false
+	uni.navigateTo({
+		url: `/pages/artist/artist?id=${artistId}`
+	})
+}
+
 // 页面加载时获取参数并播放
 onMounted(() => {
 	// 获取页面参数
@@ -381,6 +650,7 @@ onMounted(() => {
 .status_bar {
   height: var(--status-bar-height);
   width: 100%;
+  background-color: black;
 }
 
 // 背景模糊层
@@ -511,10 +781,7 @@ onMounted(() => {
 			width: 100%;
 			height: 100%;
 			position: relative;
-
-			&.rotating {
-				animation: rotate 20s linear infinite;
-			}
+			transition: transform 0.1s linear;
 
 			.disc-outer {
 				position: absolute;
@@ -798,20 +1065,10 @@ onMounted(() => {
 	background: rgba(0, 0, 0, 0.3);
 }
 
-// 旋转动画
-@keyframes rotate {
-	from {
-		transform: rotate(0deg);
-	}
-	to {
-		transform: rotate(360deg);
-	}
-}
-
 // 无缝循环滚动动画（包含开头暂停效果）
 // 动画说明：
-// 0%-20%: 暂停2秒（总时长10秒的话）
-// 20%-100%: 滚动一个完整周期（第一个文本+间距）
+// 0%-20%: 暂停 2 秒（总时长 10 秒的话）
+// 20%-100%: 滚动一个完整周期（第一个文本 + 间距）
 // 由于使用两份相同文本，滚动到 -50% 时刚好是一个完整循环
 @keyframes marquee-seamless {
 	0%, 20% {
@@ -819,6 +1076,201 @@ onMounted(() => {
 	}
 	100% {
 		transform: translateX(calc(-50% - 40rpx)); // 50% + 半个间距
+	}
+}
+
+// 移除 CSS 旋转动画，改用 JS 控制
+
+// 更多选项弹窗样式
+.more-menu {
+	padding-bottom: env(safe-area-inset-bottom);
+	background: #fff;
+
+	.menu-header {
+		display: flex;
+		align-items: center;
+		padding: 40rpx 30rpx 30rpx;
+
+		.menu-cover {
+			width: 120rpx;
+			height: 120rpx;
+			border-radius: 16rpx;
+			flex-shrink: 0;
+		}
+
+		.menu-cover-icon {
+			width: 120rpx;
+			height: 120rpx;
+			font-size: 60rpx;
+			color: #fff;
+			background: linear-gradient(135deg, #EC4141, #FF6666);
+			border-radius: 16rpx;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			flex-shrink: 0;
+		}
+
+		.menu-info {
+			flex: 1;
+			margin-left: 24rpx;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			gap: 12rpx;
+
+			.menu-song-name {
+				font-size: 32rpx;
+				font-weight: bold;
+				color: #333;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.menu-artist-name {
+				font-size: 26rpx;
+				color: #999;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+		}
+	}
+
+	.menu-divider {
+		height: 1rpx;
+		background: #f0f0f0;
+		margin: 0 30rpx;
+	}
+
+	.menu-options {
+		padding: 20rpx 0;
+
+		.menu-option {
+			display: flex;
+			align-items: center;
+			padding: 28rpx 30rpx;
+			transition: background 0.2s;
+
+			&:active {
+				background: #f5f5f5;
+			}
+
+			.menu-icon,
+			.menu-icon-custom {
+				width: 48rpx;
+				height: 48rpx;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				margin-right: 24rpx;
+				flex-shrink: 0;
+			}
+
+			.menu-icon {
+				font-size: 40rpx;
+				color: #666;
+			}
+
+			.menu-text {
+				font-size: 30rpx;
+				color: #333;
+			}
+		}
+	}
+}
+
+// 音质选择弹窗样式
+.quality-selector {
+	padding-bottom: env(safe-area-inset-bottom);
+	background: #fff;
+
+	.quality-title {
+		padding: 40rpx 30rpx 30rpx;
+		border-bottom: 1rpx solid #f0f0f0;
+
+		.quality-title-text {
+			font-size: 32rpx;
+			font-weight: bold;
+			color: #333;
+		}
+	}
+
+	.quality-list {
+		max-height: 800rpx;
+		padding: 20rpx 0;
+
+		.quality-item {
+			display: flex;
+			align-items: center;
+			padding: 24rpx 30rpx;
+			transition: background 0.2s;
+
+			&:active {
+				background: #f5f5f5;
+			}
+
+			&.active {
+				background: rgba(236, 65, 65, 0.05);
+			}
+
+			.quality-icon-wrapper {
+				width: 80rpx;
+				height: 80rpx;
+				border-radius: 50%; // 改为圆形
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-shrink: 0;
+				box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+
+				.quality-icon-text {
+					font-size: 28rpx;
+					font-weight: bold;
+					color: #fff;
+					font-family: Arial, sans-serif;
+				}
+			}
+
+			.quality-info {
+				flex: 1;
+				margin-left: 24rpx;
+				display: flex;
+				flex-direction: column;
+				gap: 8rpx;
+
+				.quality-name {
+					font-size: 30rpx;
+					font-weight: 500;
+					color: #333;
+				}
+
+				.quality-desc {
+					font-size: 22rpx;
+					color: #999;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					white-space: nowrap;
+				}
+			}
+
+			.quality-checkmark {
+				width: 48rpx;
+				height: 48rpx;
+				border-radius: 50%;
+				background: #EC4141;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-shrink: 0;
+
+				.icon-duigou {
+					font-size: 28rpx;
+					color: #fff;
+				}
+			}
+		}
 	}
 }
 </style>
