@@ -38,17 +38,10 @@
 				>
 					验证码登录
 				</view>
-				<view 
-					class="tab-item" 
-					:class="{ active: currentTab === 'qr' }"
-					@click="switchTab('qr')"
-				>
-					扫码登录
-				</view>
 			</view>
 			
 			<!-- 登录表单 -->
-			<view class="login-form" v-if="currentTab !== 'qr'">
+			<view class="login-form">
 				<!-- 国家区号选择 -->
 				<view class="form-item" v-if="showCountryCode">
 					<view class="country-selector" @click="showCountryPicker = true">
@@ -57,7 +50,7 @@
 						<i class="iconfont icon-xiajiantou arrow-icon"></i>
 					</view>
 				</view>
-				
+						
 				<!-- 手机号输入 -->
 				<view class="form-item">
 					<input 
@@ -68,7 +61,7 @@
 						maxlength="11"
 					/>
 				</view>
-				
+						
 				<!-- 密码输入 -->
 				<view class="form-item" v-if="currentTab === 'password'">
 					<input 
@@ -81,7 +74,7 @@
 						<i class="iconfont" :class="showPassword ? 'icon-yanjing' : 'icon-yanjing1'"></i>
 					</view>
 				</view>
-				
+						
 				<!-- 验证码输入 -->
 				<view class="form-item" v-if="currentTab === 'captcha'">
 					<input 
@@ -95,7 +88,7 @@
 						{{ captchaText }}
 					</view>
 				</view>
-				
+						
 				<!-- 登录按钮 -->
 				<button 
 					class="login-btn" 
@@ -104,27 +97,6 @@
 				>
 					登录
 				</button>
-			</view>
-			
-			<!-- 二维码登录 -->
-			<view class="qr-section" v-if="currentTab === 'qr'">
-				<view class="qr-container" v-if="qrCode">
-					<image class="qr-image" :src="qrCode" mode="aspectFit"></image>
-					<view class="qr-tip-container">
-						<text class="qr-tip">请使用</text>
-						<text class="qr-tip-highlight">网易云音乐</text>
-						<text class="qr-tip">APP扫码登录</text>
-					</view>
-				</view>
-				<view class="qr-loading" v-else>
-					<u-loading-icon mode="circle"></u-loading-icon>
-					<text class="loading-text">正在生成二维码...</text>
-				</view>
-				
-				<!-- 二维码状态提示 -->
-				<view class="qr-status" v-if="qrStatus">
-					<text class="status-text">{{ qrStatus }}</text>
-				</view>
 			</view>
 		</view>
 		
@@ -156,7 +128,7 @@ const formData = ref({
 })
 
 // 国家区号
-const showCountryCode = computed(() => currentTab.value !== 'qr')
+const showCountryCode = ref(true)
 const selectedCountry = ref({ code: '86', name: '中国' })
 const showCountryPicker = ref(false)
 
@@ -182,12 +154,6 @@ const captchaDisabled = ref(false)
 const captchaCountdown = ref(0)
 const captchaTimer = ref(null)
 
-// 二维码相关
-const qrCode = ref('')
-const qrKey = ref('')
-const qrTimer = ref(null)
-const qrStatus = ref('')
-
 // 计算属性
 const canLogin = computed(() => {
 	if (currentTab.value === 'password') {
@@ -209,12 +175,6 @@ const captchaText = computed(() => {
 const switchTab = (tab) => {
 	currentTab.value = tab
 	resetForm()
-	
-	if (tab === 'qr') {
-		generateQrCode()
-	} else {
-		stopQrPolling()
-	}
 }
 
 // 重置表单
@@ -224,8 +184,6 @@ const resetForm = () => {
 		password: '',
 		captcha: ''
 	}
-	qrCode.value = ''
-	qrStatus.value = ''
 	stopCaptchaCountdown()
 }
 
@@ -276,81 +234,7 @@ const stopCaptchaCountdown = () => {
 	captchaDisabled.value = false
 }
 
-// 生成二维码
-const generateQrCode = async () => {
-	try {
-		// 获取二维码key
-		const keyRes = await userStore.getQrKey()
-		if (keyRes.code === 200) {
-			qrKey.value = keyRes.data.unikey
-			
-			// 生成二维码
-			const qrRes = await userStore.getQrCreate(qrKey.value)
-			if (qrRes.code === 200) {
-				qrCode.value = qrRes.data.qrimg
-				startQrPolling()
-			}
-		}
-	} catch (error) {
-		console.error('生成二维码失败:', error)
-		uni.showToast({
-			title: '二维码生成失败',
-			icon: 'none'
-		})
-	}
-}
 
-// 开始二维码轮询
-const startQrPolling = () => {
-	stopQrPolling()
-	qrTimer.value = setInterval(async () => {
-		try {
-			const res = await userStore.checkQrStatus(qrKey.value)
-			handleQrStatus(res)
-		} catch (error) {
-			console.error('二维码状态检查失败:', error)
-		}
-	}, 1000)
-}
-
-// 处理二维码状态
-const handleQrStatus = (res) => {
-	switch (res.code) {
-		case 800:
-			// 二维码过期
-			qrStatus.value = '二维码已过期，请重新生成'
-			stopQrPolling()
-			break
-		case 801:
-			// 等待扫码
-			qrStatus.value = '请使用网易云音乐APP扫码'
-			break
-		case 802:
-			// 待确认
-			qrStatus.value = '请在手机上确认登录'
-			break
-		case 803:
-			// 授权登录成功
-			qrStatus.value = '登录成功'
-			stopQrPolling()
-			// 处理登录成功
-			userStore.handleQrLogin(res)
-			// 登录成功后获取用户数据
-			setTimeout(async () => {
-				await userStore.refreshUserData()
-				goBack()
-			}, 1000)
-			break
-	}
-}
-
-// 停止二维码轮询
-const stopQrPolling = () => {
-	if (qrTimer.value) {
-		clearInterval(qrTimer.value)
-		qrTimer.value = null
-	}
-}
 
 // 处理登录
 const handleLogin = async () => {
@@ -378,8 +262,15 @@ const handleLogin = async () => {
 		if (success) {
 			// 登录成功后获取用户数据
 			await userStore.refreshUserData()
+			uni.showToast({
+				title: '登录成功',
+				icon: 'success'
+			})
 			setTimeout(() => {
-				goBack()
+				// 跳转到我的页面
+				uni.reLaunch({
+					url: '/pages/my/my'
+				})
 			}, 1000)
 		}
 	} catch (error) {
@@ -402,7 +293,6 @@ onMounted(() => {
 onUnmounted(() => {
 	// 清理定时器
 	stopCaptchaCountdown()
-	stopQrPolling()
 })
 </script>
 
@@ -599,63 +489,6 @@ onUnmounted(() => {
 		}
 	}
 	
-	.qr-section {
-		text-align: center;
-		padding: 40px 0;
-		
-		.qr-container {
-			.qr-image {
-				width: 240px;
-				height: 240px;
-				background: #fff;
-				border-radius: 12px;
-				padding: 16px;
-				margin-bottom: 20px;
-			}
-			
-			.qr-tip-container {
-				display: flex;
-				justify-content: center;
-				align-items: center;
-				flex-wrap: wrap;
-				gap: 4px;
-			}
-			
-			.qr-tip {
-				font-size: 16px;
-				color: rgba(255, 255, 255, 0.9);
-			}
-			
-			.qr-tip-highlight {
-				font-size: 16px;
-				font-weight: bold;
-				color: #fff;
-				background: linear-gradient(90deg, #EC4141, #FF6666);
-				padding: 4px 8px;
-				border-radius: 12px;
-			}
-		}
-		
-		.qr-loading {
-			.loading-text {
-				display: block;
-				margin-top: 16px;
-				font-size: 16px;
-				color: rgba(255, 255, 255, 0.7);
-			}
-		}
-		
-		.qr-status {
-			margin-top: 20px;
-			
-			.status-text {
-				font-size: 16px;
-				color: #fff;
-				padding: 8px 16px;
-				background: rgba(255, 255, 255, 0.2);
-				border-radius: 16px;
-			}
-		}
-	}
+
 }
 </style>
