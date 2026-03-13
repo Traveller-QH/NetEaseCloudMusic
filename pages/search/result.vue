@@ -625,6 +625,8 @@
 
     <!-- 底部播放控制条（固定底部） -->
     <PlayBar class="play-bar" />
+    <!-- 搜索弹窗组件 -->
+    <SearchPopup v-model="showSearchPopup" @search="handleSearchFromPopup" />
   </view>
 </template>
 
@@ -634,11 +636,13 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import { search, getSearchDefault } from '@/utils/api.js'
 import { useMusicStore } from '@/utils/musicStore.js'
 import PlayBar from '@/components/PlayBar/PlayBar.vue'
+import SearchPopup from '@/components/SearchPopup/SearchPopup.vue'
 
 const musicStore = useMusicStore()
 
 // 获取页面参数
 const currentKeyword = ref('')
+const showSearchPopup = ref(false) // 控制搜索弹窗显示
 
 // 使用onLoad生命周期获取参数
 onLoad((options) => {
@@ -1069,11 +1073,38 @@ const goToCategory = (category) => {
   switchTab(category)
 }
 
-// 跳转回搜索页面
-const goToSearchPage = () => {
-  uni.redirectTo({
-    url: `/pages/search/search?keyword=${encodeURIComponent(currentKeyword.value)}`
+// 处理搜索点击 - 打开搜索弹窗
+const handleSearchClick = () => {
+  showSearchPopup.value = true
+}
+
+// 处理从弹窗发起的搜索
+const handleSearchFromPopup = (keyword) => {
+  // 更新当前关键词
+  currentKeyword.value = keyword
+  // 刷新搜索结果
+  currentPage.value = 1
+  allResults.value = {}
+  singleResults.value = []
+  playlistResults.value = []
+  voiceResults.value = []
+  albumResults.value = []
+  radioResults.value = []
+  videoResults.value = []
+  artistResults.value = []
+  userResults.value = []
+  lyricsResults.value = []
+  // 重新加载数据
+  searchResultsData(1018).catch(error => {
+    console.error('搜索结果加载失败:', error)
+    apiError.value = true
   })
+}
+
+// 跳转回搜索页面（原方法保留，但现在使用弹窗）
+const goToSearchPage = () => {
+  // 改为打开搜索弹窗
+  handleSearchClick()
 }
 
 // 返回上一页

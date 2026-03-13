@@ -187,6 +187,8 @@
 
     <!-- 底部导航栏（普通块） -->
     <AppTabBar class="app-tabbar" :current-page="'discovery'" @tabChange="onTabChange" />
+    <!-- 搜索弹窗组件 -->
+    <SearchPopup v-model="showSearchPopup" @search="handleSearch" />
   </view>
 </template>
 
@@ -197,12 +199,14 @@ import { useMusicStore } from '@/utils/musicStore.js'
 import AppTabBar from '@/components/AppTabBar/AppTabBar.vue'
 import Sidebar from '@/components/Sidebar/Sidebar.vue'
 import PlayBar from '@/components/PlayBar/PlayBar.vue'
+import SearchPopup from '@/components/SearchPopup/SearchPopup.vue'
 
 const musicStore = useMusicStore()
 
 const activeTab = ref(0)
 const showSidebar = ref(false)
 const loading = ref(false)
+const showSearchPopup = ref(false) // 控制搜索弹窗显示
 
 // 滚动控制（如有需要可保留）
 const onScroll = (e) => {
@@ -211,6 +215,18 @@ const onScroll = (e) => {
 
 // 获取当前日期
 const currentDay = computed(() => new Date().getDate())
+
+// 处理搜索点击 - 打开搜索弹窗
+const handleSearchClick = () => {
+  showSearchPopup.value = true
+}
+
+// 处理搜索事件 - 跳转到搜索结果页
+const handleSearch = (keyword) => {
+  uni.navigateTo({
+    url: `/pages/search/result?keyword=${encodeURIComponent(keyword)}`
+  })
+}
 
 // 快捷入口
 const quickEntries = ref([
@@ -222,13 +238,7 @@ const quickEntries = ref([
 ])
 
 // 搜索相关
-const searchKey = ref('')
 
-const handleSearchClick = () => {
-  uni.navigateTo({
-    url: '/pages/search/search'
-  })
-}
 
 // 轮播图数据
 const banners = ref([])
