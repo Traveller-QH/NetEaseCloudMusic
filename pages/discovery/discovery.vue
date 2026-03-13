@@ -238,6 +238,7 @@ const quickEntries = ref([
 ])
 
 // 搜索相关
+const searchKey = ref('') // 搜索关键词
 
 
 // 轮播图数据
