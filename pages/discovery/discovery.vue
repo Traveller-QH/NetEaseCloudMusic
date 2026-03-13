@@ -193,7 +193,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { onBackPress } from '@dcloudio/uni-app'
 import { getBanner, getPersonalized, getRecommendNewSong, getNewSongs, getHotTopic } from '@/utils/api.js'
 import { useMusicStore } from '@/utils/musicStore.js'
 import AppTabBar from '@/components/AppTabBar/AppTabBar.vue'
@@ -207,6 +208,25 @@ const activeTab = ref(0)
 const showSidebar = ref(false)
 const loading = ref(false)
 const showSearchPopup = ref(false) // 控制搜索弹窗显示
+
+// 处理返回键（使用 uni-app 的 onBackPress）
+onBackPress(() => {
+  if (showSearchPopup.value) {
+    // 如果搜索弹窗显示，关闭弹窗并阻止默认返回
+    showSearchPopup.value = false
+    return true // 阻止默认返回行为
+  }
+  // 返回 false 允许默认返回行为（退出应用）
+  return false
+})
+
+onMounted(() => {
+  initData()
+})
+
+onUnmounted(() => {
+  // 无需额外清理
+})
 
 // 滚动控制（如有需要可保留）
 const onScroll = (e) => {
@@ -396,10 +416,6 @@ const initData = async () => {
     loading.value = false
   }
 }
-
-onMounted(() => {
-  initData()
-})
 </script>
 
 <style lang="scss" scoped>
