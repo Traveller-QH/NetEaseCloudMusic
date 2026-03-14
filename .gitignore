@@ -1,0 +1,14 @@
+# 默认忽略的文件
+.idea/shelf/
+.idea/workspace.xml
+# 已忽略包含查询文件的默认文件夹
+.idea/queries/
+# Datasource local storage ignored files
+.idea/dataSources/
+.idea/dataSources.local.xml
+# 基于编辑器的 HTTP 客户端请求
+.idea/httpRequests/
+# 打包生成的文件
+/unpackage/
+# 编辑器启动配置文件
+/.hbuilderx/launch.json
