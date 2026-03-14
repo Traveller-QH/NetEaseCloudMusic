@@ -239,7 +239,16 @@ const getArtistNames = (artists) => {
 // 播放歌曲
 const playSong = (song) => {
   if (song && song.id) {
-    musicStore.playSongById(song.id)
+    // 使用猜你喜欢的歌曲列表
+    const songIndex = guessSongs.value.findIndex(s => String(s.id) === String(song.id))
+    if (songIndex >= 0) {
+      musicStore.setPlaylist(guessSongs.value, song.id)
+      musicStore.playFromPlaylist(songIndex)
+    } else {
+      // 如果找不到，只播放这一首
+      musicStore.addToPlaylist(song)
+    }
+    
     uni.navigateTo({
       url: `/pages/player/player?id=${song.id}`
     })

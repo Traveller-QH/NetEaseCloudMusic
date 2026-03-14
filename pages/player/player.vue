@@ -121,19 +121,19 @@
 
 		<!-- 播放控制区 -->
 		<view class="control-wrapper">
-			<view class="control-item">
-				<i class="iconfont icon-liebiaoxunhuan control-icon-small" />
+			<view class="control-item" @click="handleTogglePlayMode">
+				<i class="iconfont control-icon-small" :class="playModeIconClass" />
 			</view>
 			<view class="control-item">
-				<i class="iconfont icon-shangyishou1 control-icon-medium" />
+				<i class="iconfont icon-shangyishou1 control-icon-medium" @click="handlePlayPrevious" />
 			</view>
 			<view class="control-item play-btn" @click="handleTogglePlay">
 				<i class="iconfont control-icon-large" :class="musicStore.state.isPlaying ? 'icon-zantingbofang1' : 'icon-bofang1'" />
 			</view>
 			<view class="control-item">
-				<i class="iconfont icon-shangyishou control-icon-medium" />
+				<i class="iconfont icon-shangyishou control-icon-medium" @click="handlePlayNext" />
 			</view>
-			<view class="control-item">
+			<view class="control-item" @click="showPlaylistPopup = true">
 				<i class="iconfont icon-bofangliebiao control-icon-small" />
 			</view>
 		</view>
@@ -141,6 +141,9 @@
 		<!-- 底部安全区 -->
 		<view class="safe-bottom"></view>
 	</view>
+
+	<!-- 播放列表弹窗 -->
+	<PlaylistPopup v-model="showPlaylistPopup" />
 
 	<!-- 更多选项弹窗 -->
 	<u-popup v-model:show="showMoreMenu" mode="bottom" :round="20">
@@ -243,6 +246,7 @@
 <script setup>
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue'
 import { useMusicStore } from '@/utils/musicStore.js'
+import PlaylistPopup from '@/components/PlaylistPopup/PlaylistPopup.vue'
 
 defineProps({
   id: {
@@ -319,6 +323,15 @@ onUnmounted(() => {
 // 弹窗显示状态
 const showMoreMenu = ref(false)
 const showQualitySelector = ref(false)
+const showPlaylistPopup = ref(false) // 播放列表弹窗
+
+// 循环模式图标
+const playModeIconClass = computed(() => {
+  const mode = musicStore.state.playMode
+  if (mode === 'single') return 'icon-danquxunhuan'
+  if (mode === 'random') return 'icon-suijibofang'
+  return 'icon-liebiaoxunhuan'
+})
 
 // 计算属性
 const albumName = computed(() => {
@@ -433,6 +446,21 @@ const dragTimeStr = computed(() => {
 // 播放/暂停切换
 const handleTogglePlay = () => {
 	musicStore.togglePlay()
+}
+
+// 切换循环模式
+const handleTogglePlayMode = () => {
+  musicStore.togglePlayMode()
+}
+
+// 播放上一首
+const handlePlayPrevious = () => {
+  musicStore.playPrevious()
+}
+
+// 播放下一首
+const handlePlayNext = () => {
+  musicStore.playNext()
 }
 
 // 切换喜欢状态

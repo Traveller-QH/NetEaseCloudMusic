@@ -303,6 +303,16 @@ const handleLoadMore = () => {
 
 // 播放歌曲
 const handlePlaySong = (song) => {
+  // 使用当前已加载的歌曲列表
+  const songIndex = songList.value.findIndex(s => String(s.id) === String(song.id))
+  if (songIndex >= 0) {
+    musicStore.setPlaylist(songList.value, song.id)
+    musicStore.playFromPlaylist(songIndex)
+  } else {
+    // 如果找不到，只播放这一首
+    musicStore.addToPlaylist(song)
+  }
+  
   uni.navigateTo({
     url: `/pages/player/player?id=${song.id}`
   })

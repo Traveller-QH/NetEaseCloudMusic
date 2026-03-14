@@ -865,6 +865,29 @@ const toggleVideoSort = () => {
 
 // 播放歌曲
 const playSong = (song) => {
+  // 根据当前所在分类使用不同的歌曲列表
+  let songs = []
+  
+  if (activeTab.value === 'songs') {
+    // 主页分类 - 歌曲列表，使用全部歌曲
+    songs = allSongs.value
+  } else if (activeTab.value === 'home') {
+    // 主页分类 - TA 的热门作品，使用热门歌曲列表
+    songs = hotSongs.value
+  }
+  
+  // 在列表中查找当前歌曲
+  const songIndex = songs.findIndex(s => String(s.id) === String(song.id))
+  
+  if (songs.length > 0 && songIndex >= 0) {
+    // 找到了歌曲，使用整个列表替换播放列表
+    musicStore.setPlaylist(songs, song.id)
+    musicStore.playFromPlaylist(songIndex)
+  } else {
+    // 如果找不到，只播放这一首
+    musicStore.addToPlaylist(song)
+  }
+  
   uni.navigateTo({
     url: `/pages/player/player?id=${song.id}`
   })

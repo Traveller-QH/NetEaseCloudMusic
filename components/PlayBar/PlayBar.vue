@@ -5,7 +5,7 @@
 
     <!-- 播放控制区域 -->
     <view class="play-content" @click="handleGoToPlayer">
-      <!-- CD圆盘样式专辑封面 -->
+      <!-- CD 圆盘样式专辑封面 -->
       <view class="album-cover">
         <view class="cd-outer" :class="{ 'playing': isPlaying }">
           <view class="cd-inner">
@@ -41,17 +41,22 @@
         </view>
       </view>
     </view>
+    
+    <!-- 播放列表弹窗 -->
+    <PlaylistPopup v-model="showPlaylistPopup" />
   </view>
 </template>
 
 <script setup>
 import { useMusicStore } from '@/utils/musicStore.js'
 import { ref, onMounted, onUnmounted, watch } from 'vue'
+import PlaylistPopup from '@/components/PlaylistPopup/PlaylistPopup.vue'
 
 const musicStore = useMusicStore()
 
 const isPlaying = ref(false)
 const isModalVisible = ref(false)
+const showPlaylistPopup = ref(false) // 播放列表弹窗显示状态
 
 // 模态弹窗管理（全局）
 const showModal = () => {
@@ -81,7 +86,7 @@ const handleTogglePlay = () => {
 }
 
 const handleShowPlaylist = () => {
-  // TODO: 播放列表
+  showPlaylistPopup.value = true
 }
 
 const updatePlayState = () => {

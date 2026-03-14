@@ -230,25 +230,40 @@ const fetchSongs = async (id, type, isLoadMore = false) => {
       } else {
         songList.value = res.songs
       }
-
+        
+      // 同时更新预加载数据
+      const preloadData = musicStore.getPreloadData()
+      if (!preloadData.songs.length || !isLoadMore) {
+        preloadData.songs = [...songList.value]
+      } else {
+        // 如果是加载更多，只添加新加载的歌曲
+        preloadData.songs.push(...res.songs)
+      }
+        
       // 更新偏移量
       currentOffset.value += res.songs.length
-
+        
       // 判断是否还有更多数据
       // 如果返回的歌曲数量小于请求的数量，说明已经没有更多了
       // 或者当前偏移量已经达到总数
       if (res.songs.length < pageSize) {
         hasMore.value = false
+        preloadData.hasMore = false
       } else if (totalSongs.value > 0) {
         hasMore.value = currentOffset.value < totalSongs.value
+        preloadData.hasMore = hasMore.value
       }
     } else {
       // 接口返回异常，没有更多数据
       hasMore.value = false
+      const preloadData = musicStore.getPreloadData()
+      preloadData.hasMore = false
     }
   } catch (error) {
     console.error(`获取${type === 'album' ? '专辑' : type === 'radio' ? '播客' : '歌单'}歌曲失败:`, error)
     hasMore.value = false
+    const preloadData = musicStore.getPreloadData()
+    preloadData.hasMore = false
   } finally {
     loading.value = false
   }
@@ -262,10 +277,92 @@ const handleLoadMore = () => {
 }
 
 // 播放歌曲
-const handlePlaySong = (song) => {
+const handlePlaySong = async (song) => {
+  // 如果已经有预加载数据，使用预加载数据
+  const preloadData = musicStore.getPreloadData()
+  
+  if (preloadData.playlistId === playlistId.value && preloadData.songs.length > 0) {
+    // 有预加载数据，直接使用
+    const songIndex = preloadData.songs.findIndex(s => String(s.id) === String(song.id))
+    musicStore.setPlaylist(preloadData.songs, song.id)
+    musicStore.playFromPlaylist(songIndex >= 0 ? songIndex : 0)
+  } else {
+    // 没有预加载数据，先尝试加载全部歌曲
+    if (!loading.value && hasMore.value) {
+      uni.showLoading({ title: '加载中...' })
+      try {
+        // 递归加载所有歌曲
+        await loadAllSongs()
+        
+        // 重新检查预加载数据
+        const updatedPreloadData = musicStore.getPreloadData()
+        if (updatedPreloadData.songs.length > 0) {
+          const songIndex = updatedPreloadData.songs.findIndex(s => String(s.id) === String(song.id))
+          musicStore.setPlaylist(updatedPreloadData.songs, song.id)
+          musicStore.playFromPlaylist(songIndex >= 0 ? songIndex : 0)
+        }
+      } catch (error) {
+        console.error('加载全部歌曲失败:', error)
+        // 如果加载失败，只播放当前这一首
+        musicStore.addToPlaylist(song)
+      } finally {
+        uni.hideLoading()
+      }
+    } else {
+      // 已经在加载中或没有更多数据，使用当前列表
+      const songIndex = songList.value.findIndex(s => String(s.id) === String(song.id))
+      musicStore.setPlaylist(songList.value, song.id)
+      musicStore.playFromPlaylist(songIndex >= 0 ? songIndex : 0)
+    }
+  }
+  
   uni.navigateTo({
     url: `/pages/player/player?id=${song.id}`
   })
+}
+
+// 递归加载所有歌曲
+const loadAllSongs = async () => {
+  if (!hasMore.value || loading.value) return
+  
+  loading.value = true
+  try {
+    const res = await getPlaylistTrackAll(
+      playlistId.value,
+      pageSize,
+      currentOffset.value
+    )
+    
+    if (res.code === 200 && res.songs) {
+      // 追加到预加载数据
+      const preloadData = musicStore.getPreloadData()
+      preloadData.songs.push(...res.songs)
+      
+      // 更新偏移量
+      currentOffset.value += res.songs.length
+      
+      // 判断是否还有更多数据
+      if (res.songs.length < pageSize) {
+        hasMore.value = false
+        preloadData.hasMore = false
+      } else if (totalSongs.value > 0) {
+        hasMore.value = currentOffset.value < totalSongs.value
+        preloadData.hasMore = hasMore.value
+      }
+      
+      // 如果还有更多，继续加载
+      if (hasMore.value) {
+        await loadAllSongs()
+      }
+    } else {
+      hasMore.value = false
+    }
+  } catch (error) {
+    console.error('加载歌曲失败:', error)
+    hasMore.value = false
+  } finally {
+    loading.value = false
+  }
 }
 
 // 播放全部
@@ -299,10 +396,17 @@ onMounted(async () => {
     // 获取页面类型，默认为歌单
     pageType.value = options.type || 'playlist'
     
-    // 先获取详情（包含歌曲总数），再获取歌曲列表
+    // 先获取详情 (包含歌曲总数),再获取歌曲列表
     await fetchDetail(options.id, pageType.value)
     // 获取第一页歌曲
     fetchSongs(options.id, pageType.value, false)
+    
+    // 设置预加载数据
+    const preloadData = musicStore.getPreloadData()
+    preloadData.playlistId = playlistId.value
+    preloadData.totalCount = totalSongs.value
+    preloadData.songs = []
+    preloadData.hasMore = hasMore.value
   }
 })
 </script>

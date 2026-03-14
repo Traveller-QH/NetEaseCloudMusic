@@ -7,6 +7,15 @@ import { getSongDetail, getSongUrl, getLyric, getSongComment, getSongRedCount, t
 // 当前播放请求ID，用于处理并发播放请求
 let currentPlayId = 0
 
+// 预加载的歌曲列表数据 (用于存储完整的歌单信息，支持懒加载)
+const preloadPlaylistData = {
+	playlistId: null, // 歌单ID
+	totalCount: 0,    // 总歌曲数
+	songs: [],        // 已加载的歌曲
+	hasMore: false,   // 是否还有更多歌曲
+	loadAllPromise: null // 加载全部歌曲的 Promise
+}
+
 // 音频播放器管理器
 const AudioPlayerManager = (() => {
 	let audioContext = null
@@ -44,6 +53,17 @@ const AudioPlayerManager = (() => {
 			isPlaying = false
 			state.isPlaying = false
 			state.currentTime = 0
+			
+			// 根据循环模式决定是否播放下一首
+			if (state.playMode === 'single') {
+				// 单曲循环，重新播放当前歌曲
+				if (state.songUrl) {
+					audioContext.play()
+				}
+			} else {
+				// 列表循环或随机播放，播放下一首
+				playNext()
+			}
 		})
 		
 		// 监听时间更新
@@ -205,15 +225,15 @@ const state = reactive({
 	currentSong: null,
 	// 播放状态
 	isPlaying: false,
-	// 当前播放时间（秒）
+	// 当前播放时间 (秒)
 	currentTime: 0,
-	// 总时长（秒）
+	// 总时长 (秒)
 	duration: 0,
 	// 播放地址
 	songUrl: '',
 	// 加载状态
 	loading: false,
-	// 歌词列表 [{ time: 秒数，text: '歌词内容' }]
+	// 歌词列表 [{time: 秒数，text: '歌词内容'}]
 	lyrics: [],
 	// 当前歌词索引
 	currentLyricIndex: 0,
@@ -221,14 +241,22 @@ const state = reactive({
 	commentCount: 0,
 	// 红心数量
 	redCount: 0,
-	// 红心数量描述（后端返回的格式化字符串）
+	// 红心数量描述 (后端返回的格式化字符串)
 	redCountDesc: '0',
 	// 歌曲是否被喜欢
 	isLiked: false,
 	// 当前音质等级
 	currentQuality: 'standard',
 	// 可用音质列表
-	availableQualities: []
+	availableQualities: [],
+	// 播放列表
+	playlist: [],
+	// 播放列表中当前播放歌曲的索引
+	playlistIndex: -1,
+	// 循环模式:'list'(列表循环),'single'(单曲循环),'random'(随机播放)
+	playMode: 'list',
+	// 播放历史栈 (记录随机播放时的路径，用于上一首功能)
+	playHistory: [],
 })
 
 // 歌曲名称
@@ -646,11 +674,221 @@ const seekTo = (time) => {
 	state.currentTime = time
 }
 
-// 设置进度（百分比 0-100）
+// 设置进度 (百分比 0-100)
 const setProgress = (percent) => {
 	if (!state.duration) return
 	const time = (percent / 100) * state.duration
 	seekTo(time)
+}
+
+// 设置播放列表
+const setPlaylist = (songs, currentSongId = null) => {
+	if (!songs || !Array.isArray(songs) || songs.length === 0) {
+		console.warn('播放列表不能为空')
+		return false
+	}
+	
+	state.playlist = songs
+	
+	// 如果指定了当前歌曲，设置播放索引
+	if (currentSongId) {
+		const index = songs.findIndex(s => String(s.id) === String(currentSongId))
+		if (index !== -1) {
+			state.playlistIndex = index
+		} else {
+			// 如果找不到，默认播放第一首
+			state.playlistIndex = 0
+		}
+	} else {
+		// 否则默认播放第一首
+		state.playlistIndex = 0
+	}
+	
+	// 清空播放历史
+	state.playHistory = []
+	
+	return true
+}
+
+// 添加到播放列表 (在当前播放歌曲的下一首位置添加)
+const addToPlaylist = (song) => {
+	if (!song || !song.id) {
+		console.warn('歌曲信息无效')
+		return false
+	}
+	
+	// 检查是否已在播放列表中
+	const existingIndex = state.playlist.findIndex(s => String(s.id) === String(song.id))
+	if (existingIndex !== -1) {
+		// 已存在，直接切换到该歌曲
+		state.playlistIndex = existingIndex
+		state.currentSong = song
+		playSongById(song.id)
+		return true
+	}
+	
+	// 在当前位置的下一首添加
+	const insertIndex = state.playlistIndex + 1
+	state.playlist.splice(insertIndex, 0, song)
+	state.playlistIndex = insertIndex
+	state.currentSong = song
+	playSongById(song.id)
+	
+	return true
+}
+
+// 从播放列表中移除歌曲
+const removeFromPlaylist = (songId) => {
+	if (!songId) return false
+	
+	const index = state.playlist.findIndex(s => String(s.id) === String(songId))
+	if (index === -1) return false
+	
+	// 如果移除的是当前播放的歌曲
+	if (index === state.playlistIndex) {
+		// 如果还有下一首，播放下一首
+		if (state.playlist.length > index + 1) {
+			const nextSong = state.playlist[index + 1]
+			state.playlist.splice(index, 1)
+			state.playlistIndex = index
+			state.currentSong = nextSong
+			playSongById(nextSong.id)
+		} else if (state.playlist.length > 1) {
+			// 如果是最后一首，播放上一首
+			state.playlist.splice(index, 1)
+			state.playlistIndex = Math.max(0, index - 1)
+			const prevSong = state.playlist[state.playlistIndex]
+			state.currentSong = prevSong
+			playSongById(prevSong.id)
+		} else {
+			// 只剩这一首，停止播放
+			state.playlist.splice(index, 1)
+			state.playlistIndex = -1
+			state.currentSong = null
+			stop()
+		}
+	} else {
+		// 移除的不是当前播放的歌曲
+		state.playlist.splice(index, 1)
+		// 如果移除的歌曲在当前播放歌曲之前，需要调整索引
+		if (index < state.playlistIndex) {
+			state.playlistIndex--
+		}
+	}
+	
+	return true
+}
+
+// 清空播放列表
+const clearPlaylist = () => {
+	state.playlist = []
+	state.playlistIndex = -1
+	state.currentSong = null
+	state.playHistory = [] // 清空历史记录
+	stop()
+}
+
+// 播放播放列表中的指定歌曲
+const playFromPlaylist = (index, isHistoryOperation = false) => {
+	if (index < 0 || index >= state.playlist.length) {
+		console.warn('无效的播放索引')
+		return false
+	}
+	
+	// 将当前索引添加到历史记录 (如果不是随机播放模式，不需要记录；如果是历史操作，也不需要再记录)
+	if (state.playMode === 'random' && state.playlistIndex >= 0 && !isHistoryOperation) {
+		state.playHistory.push(state.playlistIndex)
+	}
+	
+	state.playlistIndex = index
+	const song = state.playlist[index]
+	state.currentSong = song
+	playSongById(song.id)
+	
+	return true
+}
+
+// 播放下一首
+const playNext = () => {
+	if (state.playlist.length === 0) return false
+	
+	let nextIndex
+	
+	if (state.playMode === 'random') {
+		// 随机播放 - 每次都随机选择一首
+		nextIndex = Math.floor(Math.random() * state.playlist.length)
+	} else if (state.playMode === 'single') {
+		// 单曲循环，重新播放当前歌曲
+		nextIndex = state.playlistIndex
+	} else {
+		// 列表循环
+		nextIndex = state.playlistIndex + 1
+		if (nextIndex >= state.playlist.length) {
+			nextIndex = 0 // 循环到第一首
+		}
+	}
+	
+	return playFromPlaylist(nextIndex)
+}
+
+// 播放上一首
+const playPrevious = () => {
+	if (state.playlist.length === 0) return false
+	
+	let prevIndex
+	
+	if (state.playMode === 'random') {
+		// 随机播放模式下，从历史记录中返回上一首
+		if (state.playHistory.length > 0) {
+			// 从历史栈中弹出上一个索引
+			prevIndex = state.playHistory.pop()
+			// 直接设置状态并播放，标记为历史操作，避免再次记录历史
+			state.playlistIndex = prevIndex
+			const song = state.playlist[prevIndex]
+			state.currentSong = song
+			playSongById(song.id)
+			return true
+		} else {
+			// 没有历史记录，随机播放一首
+			prevIndex = Math.floor(Math.random() * state.playlist.length)
+		}
+	} else {
+		// 列表循环或单曲循环
+		prevIndex = state.playlistIndex - 1
+		if (prevIndex < 0) {
+			prevIndex = state.playlist.length - 1 // 循环到最后一首
+		}
+	}
+	
+	return playFromPlaylist(prevIndex)
+}
+
+// 切换循环模式
+const togglePlayMode = () => {
+	const modes = ['list', 'single', 'random']
+	const currentIndex = modes.indexOf(state.playMode)
+	const nextIndex = (currentIndex + 1) % modes.length
+	state.playMode = modes[nextIndex]
+	return state.playMode
+}
+
+// 获取预加载数据
+const getPreloadData = () => preloadPlaylistData
+
+// 设置预加载数据
+const setPreloadData = (data) => {
+	if (data && typeof data === 'object') {
+		Object.assign(preloadPlaylistData, data)
+	}
+}
+
+// 重置预加载数据
+const resetPreloadData = () => {
+	preloadPlaylistData.playlistId = null
+	preloadPlaylistData.totalCount = 0
+	preloadPlaylistData.songs = []
+	preloadPlaylistData.hasMore = false
+	preloadPlaylistData.loadAllPromise = null
 }
 
 // 导出
@@ -677,7 +915,19 @@ export const useMusicStore = () => {
 		getQualityName,
 		getQualityIcon,
 		getQualityDescription,
-		getQualityLevel
+		getQualityLevel,
+		// 播放列表相关方法
+		setPlaylist,
+		addToPlaylist,
+		removeFromPlaylist,
+		clearPlaylist,
+		playFromPlaylist,
+		playNext,
+		playPrevious,
+		togglePlayMode,
+		getPreloadData,
+		setPreloadData,
+		resetPreloadData
 	}
 }
 
@@ -703,5 +953,17 @@ export default {
 	getQualityName,
 	getQualityIcon,
 	getQualityDescription,
-	getQualityLevel
+	getQualityLevel,
+	// 播放列表相关方法
+	setPlaylist,
+	addToPlaylist,
+	removeFromPlaylist,
+	clearPlaylist,
+	playFromPlaylist,
+	playNext,
+	playPrevious,
+	togglePlayMode,
+	getPreloadData,
+	setPreloadData,
+	resetPreloadData
 }

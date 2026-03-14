@@ -334,7 +334,30 @@ const goPlaylistDetail = (id) => {
 // 播放歌曲
 const playSong = (song) => {
   if (song && song.id) {
-    musicStore.playSongById(song.id)
+    // 根据歌曲来源使用不同的播放列表
+    let songs = []
+    
+    // 尝试从推荐歌曲中查找
+    const recommendIndex = recommendSongs.value.findIndex(s => String(s.id) === String(song.id))
+    if (recommendIndex >= 0) {
+      songs = recommendSongs.value
+    } else {
+      // 尝试从新歌速递中查找
+      const newIndex = newSongs.value.findIndex(s => String(s.id) === String(song.id))
+      if (newIndex >= 0) {
+        songs = newSongs.value
+      }
+    }
+    
+    if (songs.length > 0) {
+      musicStore.setPlaylist(songs, song.id)
+      const index = songs.findIndex(s => String(s.id) === String(song.id))
+      musicStore.playFromPlaylist(index >= 0 ? index : 0)
+    } else {
+      // 如果找不到，只播放这一首
+      musicStore.addToPlaylist(song)
+    }
+    
     uni.navigateTo({
       url: `/pages/player/player?id=${song.id}`
     })

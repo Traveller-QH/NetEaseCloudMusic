@@ -215,12 +215,14 @@ import { onBackPress } from '@dcloudio/uni-app'
 import { onShow } from '@dcloudio/uni-app'
 import { useUserStore } from '@/utils/userStore.js'
 import { getUserDetail } from '@/utils/api.js'
+import { useMusicStore } from '@/utils/musicStore.js'
 import AppTabBar from '@/components/AppTabBar/AppTabBar.vue'
 import Sidebar from '@/components/Sidebar/Sidebar.vue'
 import PlayBar from '@/components/PlayBar/PlayBar.vue'
 import SearchPopup from '@/components/SearchPopup/SearchPopup.vue'
 
 const userStore = useUserStore()
+const musicStore = useMusicStore()
 
 const showSidebar = ref(false)
 const showCreated = ref(false)
@@ -340,6 +342,16 @@ const getArtistNames = (artists) => {
 // 播放歌曲
 const playSong = (song) => {
 	if (!song || !song.id) return
+	
+	// 使用最近播放列表
+	const songIndex = recentSongs.value.findIndex(s => String(s.id) === String(song.id))
+	if (songIndex >= 0) {
+		musicStore.setPlaylist(recentSongs.value, song.id)
+		musicStore.playFromPlaylist(songIndex)
+	} else {
+		// 如果找不到，只播放这一首
+		musicStore.addToPlaylist(song)
+	}
 	
 	uni.navigateTo({
 		url: `/pages/player/player?id=${song.id}`

@@ -1011,7 +1011,54 @@ const formatDuration = (duration) => {
 
 // 播放歌曲
 const playSong = (song) => {
-  musicStore.playSongById(song.id)
+  // 如果是单曲分类或综合分类，只添加这一首歌到播放列表
+  if (activeTab.value === 'single' || activeTab.value === 'all') {
+    musicStore.addToPlaylist(song)
+  } else {
+    // 其他情况，根据当前分类构建播放列表
+    let songs = []
+    
+    switch(activeTab.value) {
+      case 'playlist':
+        // 歌单分类，需要先获取完整歌单
+        // TODO: 这里需要跳转到歌单详情页获取完整列表
+        uni.navigateTo({
+          url: `/pages/playlist/playlist?id=${song.id}`
+        })
+        return
+      case 'album':
+        // 专辑分类，需要先获取完整专辑
+        uni.navigateTo({
+          url: `/pages/album/album?id=${song.id}`
+        })
+        return
+      case 'artist':
+        // 歌手分类，需要先获取歌手全部歌曲
+        uni.navigateTo({
+          url: `/pages/artist/artist?id=${song.id}`
+        })
+        return
+      default:
+        // 默认只播放这一首
+        musicStore.addToPlaylist(song)
+        uni.navigateTo({
+          url: `/pages/player/player?id=${song.id}&name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(formatSongArtists(song))}`
+        })
+        return
+    }
+    
+    if (songs.length > 0) {
+      // 设置播放列表并播放指定歌曲
+      const songIndex = songs.findIndex(s => String(s.id) === String(song.id))
+      musicStore.setPlaylist(songs, song.id)
+      musicStore.playFromPlaylist(songIndex >= 0 ? songIndex : 0)
+    } else {
+      // 如果列表为空，只播放这一首
+      musicStore.addToPlaylist(song)
+    }
+  }
+  
+  // 跳转到播放页面
   uni.navigateTo({
     url: `/pages/player/player?id=${song.id}&name=${encodeURIComponent(song.name)}&artist=${encodeURIComponent(formatSongArtists(song))}`
   })
