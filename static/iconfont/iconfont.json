@@ -6,6 +6,13 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "28751246",
+      "name": "正在播放",
+      "font_class": "zhengzaibofang",
+      "unicode": "e694",
+      "unicode_decimal": 59028
+    },
+    {
       "icon_id": "10698544",
       "name": "增强对讲音质",
       "font_class": "zengqiangduijiangyinzhi",
