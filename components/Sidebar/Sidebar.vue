@@ -77,7 +77,7 @@
 			</view>
 			<!-- 退出登录 -->
 			<view class="footer-item logout-item" v-if="isLogin" @click="handleLogout">
-				<text class="logout-icon">⏻</text>
+        <i class="iconfont icon-0tuichudenglu-05 logout-icon" />
 				<text class="footer-text logout-text">退出登录</text>
 			</view>
 		</view>
