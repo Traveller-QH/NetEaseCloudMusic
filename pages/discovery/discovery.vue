@@ -11,20 +11,21 @@
       <view class="nav-left" @click="openSidebar">
         <i class="iconfont icon-caidanliebiao nav-icon" />
       </view>
-      <view class="nav-search">
-        <up-search
-            height="60"
+      <view class="nav-center">
+        <view class="search-input-container" @click="handleSearchClick">
+          <i class="iconfont icon-sousuo search-icon" />
+          <input
+            class="search-input"
+            :value="searchKey"
             placeholder="搜索歌曲、歌手、专辑"
-            shape="round"
-            v-model="searchKey"
-            :showAction="false"
-            :disabled="true"
-            @click="handleSearchClick"
-        />
+            disabled
+          />
+        </view>
       </view>
       <view class="nav-right" @click="() => {}">
         <i class="iconfont icon-maikefeng nav-icon" />
       </view>
+
     </view>
 
     <!-- 中间滚动区域（自动撑满） -->
@@ -462,49 +463,46 @@ const initData = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24rpx;
+  padding: 0 15px;
   background: #fff;
   border-bottom: 1rpx solid #f0f0f0;
 
   .nav-left,
   .nav-right {
-    width: 60rpx;
-    height: 60rpx;
+    width: 30px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    border-radius: 50%;
-    transition: background-color 0.2s;
-
-    &:active {
-      background-color: #f0f0f0;
-    }
 
     .nav-icon {
-      font-size: 44rpx;
+      font-size: 20px;
       color: #333;
     }
   }
 
-  .nav-search {
+  .nav-center {
     flex: 1;
-    margin: 0 20rpx;
+    margin: 0 15px;
 
-    ::v-deep .u-search {
-      height: 60rpx;
+    .search-input-container {
+      display: flex;
+      align-items: center;
+      background-color: #f0f0f0;
+      border-radius: 20px;
+      padding: 8px 15px;
 
-      .u-search__content {
-        height: 60rpx;
-        border-radius: 25rpx;
+      .search-icon {
+        font-size: 18px;
+        color: #999;
+        margin-right: 10px;
+      }
 
-        .u-search__content__icon {
-          font-size: 30rpx;
-        }
-
-        .u-search__content__input {
-          font-size: 24rpx;
-        }
+      .search-input {
+        flex: 1;
+        font-size: 14px;
+        color: #333;
+        pointer-events: none;
       }
     }
   }
