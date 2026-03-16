@@ -71,7 +71,7 @@
         <i class="iconfont icon-bangzhuyufankui" />
 				<text class="footer-text">帮助与反馈</text>
 			</view>
-			<view class="footer-item">
+			<view class="footer-item" @click="goToAbout">
         <i class="iconfont icon-guanyu" />
 				<text class="footer-text">关于</text>
 			</view>
@@ -246,6 +246,16 @@ const handleLogout = () => {
 			}
 		})
 	}, 300) // 延迟时间应与侧边栏关闭动画时间匹配
+}
+
+// 跳转到关于页面
+const goToAbout = () => {
+	emit('close')
+	setTimeout(() => {
+		uni.navigateTo({
+			url: '/pages/about/about'
+		})
+	}, 150)
 }
 </script>
 

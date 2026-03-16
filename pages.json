@@ -97,6 +97,13 @@
         "navigationStyle": "custom",
         "navigationBarTitleText": "用户"
       }
+    },
+    {
+      "path": "pages/about/about",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "关于"
+      }
     }
   ],
   "globalStyle": {
