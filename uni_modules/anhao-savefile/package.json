@@ -1,0 +1,106 @@
+{
+    "id": "anhao-savefile",
+    "name": "远程文件下载保存",
+    "displayName": "远程文件下载保存（Android/iOS/HarmonyOS）",
+    "version": "1.0.0",
+    "description": "UTS 插件，一行代码将远程文件下载并保存到系统目录，支持 Android（MediaStore/FileSystem）、iOS（Documents + 分享面板）、HarmonyOS（用户选择保存位置）三端。",
+    "keywords": [
+        "下载",
+        "保存文件",
+        "文件下载",
+        "MediaStore",
+        "uts",
+        "Android",
+        "iOS",
+        "HarmonyOS",
+        "uni-app-x"
+    ],
+    "dcloudext": {
+        "type": "uts",
+        "sale": {
+            "regular": {
+                "price": "0.00"
+            },
+            "sourcecode": {
+                "price": "0.00"
+            }
+        },
+        "contact": {
+            "qq": ""
+        },
+        "declaration": {
+            "ads": "无",
+            "data": "无",
+            "permissions": "Android 9 及以下需要 WRITE_EXTERNAL_STORAGE 权限（maxSdkVersion=28），Android 10+ 无需任何权限"
+        },
+        "npmurl": "",
+        "darkmode": "-",
+        "i18n": "-",
+        "widescreen": "-"
+    },
+    "uni_modules": {
+        "dependencies": [],
+        "encrypt": [],
+        "platforms": {
+            "cloud": {
+                "tcb": "-",
+                "aliyun": "-",
+                "alipay": "-"
+            },
+            "client": {
+                "uni-app": {
+                    "vue": {
+                        "vue2": "-",
+                        "vue3": "-"
+                    },
+                    "web": {
+                        "safari": "-",
+                        "chrome": "-"
+                    },
+                    "app": {
+                        "vue": "-",
+                        "nvue": "-",
+                        "android": "-",
+                        "ios": "-",
+                        "harmony": "-"
+                    },
+                    "mp": {
+                        "weixin": "-",
+                        "alipay": "-",
+                        "toutiao": "-",
+                        "baidu": "-",
+                        "kuaishou": "-",
+                        "jd": "-",
+                        "harmony": "-",
+                        "qq": "-",
+                        "lark": "-"
+                    },
+                    "quickapp": {
+                        "huawei": "-",
+                        "union": "-"
+                    }
+                },
+                "uni-app-x": {
+                    "web": {
+                        "safari": "-",
+                        "chrome": "-"
+                    },
+                    "app": {
+                        "android": "y",
+                        "ios": "y",
+                        "harmony": "y"
+                    },
+                    "mp": {
+                        "weixin": "-"
+                    }
+                }
+            }
+        }
+    },
+    "repository": "",
+    "engines": {
+        "HBuilderX": "^3.6.8",
+        "uni-app": "^3.1.0",
+        "uni-app-x": "^3.1.0"
+    }
+}

@@ -1,0 +1,59 @@
+import { SaveRemoteFileOptions, SaveRemoteFileFunction, extractFileName } from '../interface.uts'
+
+import FileManager from 'Foundation'
+import NSURL from 'Foundation'
+import UIActivityViewController from 'UIKit'
+import UIApplication from 'UIKit'
+
+export const saveRemoteFile : SaveRemoteFileFunction = (options : SaveRemoteFileOptions) => {
+	const name = (options.saveName != null && options.saveName!.length > 0)
+		? options.saveName!
+		: extractFileName(options.url)
+
+	uni.downloadFile({
+		url: options.url,
+		success: (res) => {
+			if (res.statusCode !== 200) {
+				options.fail?.('下载失败：HTTP ' + res.statusCode)
+				return
+			}
+			try {
+				const fm = FileManager.default
+				// uni.env.USER_DATA_PATH 在 iOS 对应 Documents 目录
+				const destPath = uni.env.USER_DATA_PATH + '/' + name
+
+				// 目标文件已存在则先删除
+				if (fm.fileExists(atPath: destPath)) {
+					try {
+						fm.removeItem(atPath: destPath)
+					} catch (_e) {}
+				}
+
+				// 将临时文件复制到 Documents 目录（持久化）
+				fm.copyItem(atPath: res.tempFilePath, toPath: destPath)
+
+				// 弹出系统分享/操作面板，用户可选择"存储到文件"
+				const fileURL = NSURL.fileURL(withPath: destPath)
+				const activityVC = new UIActivityViewController(
+					activityItems: [fileURL],
+					applicationActivities: null
+				)
+
+				const rootVC = UIApplication.shared.keyWindow?.rootViewController
+				// iPad 必须设置 sourceView，否则崩溃
+				if (rootVC != null) {
+					activityVC.popoverPresentationController?.sourceView = rootVC!.view
+				}
+				rootVC?.present(activityVC, animated: true, completion: null)
+
+				options.success?.(destPath)
+			} catch (e) {
+				options.fail?.('文件保存失败')
+				console.error('anhao-savefile [iOS] error:', e)
+			}
+		},
+		fail: (err) => {
+			options.fail?.('下载失败：' + err.errMsg)
+		}
+	})
+}

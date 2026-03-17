@@ -1,0 +1,118 @@
+import { SaveRemoteFileOptions, SaveRemoteFileFunction, extractFileName, getMimeType } from '../interface.uts'
+
+import Build from 'android.os.Build'
+import ContentValues from 'android.content.ContentValues'
+import MediaStore from 'android.provider.MediaStore'
+import File from 'java.io.File'
+import FileInputStream from 'java.io.FileInputStream'
+import FileOutputStream from 'java.io.FileOutputStream'
+import OutputStream from 'java.io.OutputStream'
+import Environment from 'android.os.Environment'
+
+/**
+ * 文件重名时自动追加序号：test.pdf → test(1).pdf → test(2).pdf
+ */
+function getUniqueFile(dir : File, name : string) : File {
+	let dest = new File(dir, name)
+	if (!dest.exists()) return dest
+	const dot = name.lastIndexOf('.')
+	const base = dot >= 0 ? name.substring(0, dot) : name
+	const ext = dot >= 0 ? name.substring(dot) : ''
+	for (let i = 1; i <= 999; i++) {
+		dest = new File(dir, base + '(' + i + ')' + ext)
+		if (!dest.exists()) return dest
+	}
+	return new File(dir, base + '_' + Date.now() + ext)
+}
+
+/**
+ * Android 10+（API >= 29）：通过 MediaStore 写入系统下载目录，无需存储权限
+ */
+function copyViaMediaStore(tempPath : string, name : string, options : SaveRemoteFileOptions) {
+	try {
+		const context = UTSAndroid.getAppContext()!
+		const resolver = context.getContentResolver()
+		const values = new ContentValues()
+		values.put('_display_name', name)
+		values.put('mime_type', getMimeType(name))
+		values.put('is_pending', 1)
+		const collection = MediaStore.Downloads.getContentUri('external_primary')
+		const insertUri = resolver.insert(collection, values)
+		if (insertUri == null) {
+			options.fail?.('MediaStore 创建记录失败')
+			return
+		}
+		const out : OutputStream = resolver.openOutputStream(insertUri)!
+		const srcPath = tempPath.replace('file://', '')
+		const inStream = new FileInputStream(srcPath)
+		const buffer = new ByteArray(4096)
+		let length = inStream.read(buffer)
+		while (length > 0) {
+			out.write(buffer, 0, length)
+			length = inStream.read(buffer)
+		}
+		inStream.close()
+		out.flush()
+		out.close()
+		values.clear()
+		values.put('is_pending', 0)
+		resolver.update(insertUri, values, null, null)
+		const downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+		options.success?.(downloadsDir.getAbsolutePath() + '/' + name)
+	} catch (e) {
+		options.fail?.('MediaStore 保存失败')
+		console.error('anhao-savefile [MediaStore] error:', e)
+	}
+}
+
+/**
+ * Android 9-（API < 29）：直接用 FileOutputStream 写入 Download 目录
+ * 需要在项目 manifest.json 中声明 WRITE_EXTERNAL_STORAGE 权限（maxSdkVersion="28"）
+ */
+function copyToDownloads(tempPath : string, name : string, options : SaveRemoteFileOptions) {
+	try {
+		const downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+		if (!downloadDir.exists()) downloadDir.mkdirs()
+		const destFile = getUniqueFile(downloadDir, name)
+		const srcPath = tempPath.replace('file://', '')
+		const inStream = new FileInputStream(srcPath)
+		const outStream = new FileOutputStream(destFile)
+		const buffer = new ByteArray(4096)
+		let length = inStream.read(buffer)
+		while (length > 0) {
+			outStream.write(buffer, 0, length)
+			length = inStream.read(buffer)
+		}
+		inStream.close()
+		outStream.flush()
+		outStream.close()
+		options.success?.(destFile.getAbsolutePath())
+	} catch (e) {
+		options.fail?.('文件保存失败')
+		console.error('anhao-savefile [FileSystem] error:', e)
+	}
+}
+
+export const saveRemoteFile : SaveRemoteFileFunction = (options : SaveRemoteFileOptions) => {
+	const name = (options.saveName != null && options.saveName!.length > 0)
+		? options.saveName!
+		: extractFileName(options.url)
+
+	uni.downloadFile({
+		url: options.url,
+		success: (res) => {
+			if (res.statusCode == 200) {
+				if (Build.VERSION.SDK_INT >= 29) {
+					copyViaMediaStore(res.tempFilePath, name, options)
+				} else {
+					copyToDownloads(res.tempFilePath, name, options)
+				}
+			} else {
+				options.fail?.('下载失败：HTTP ' + res.statusCode)
+			}
+		},
+		fail: (err) => {
+			options.fail?.('下载失败：' + err.errMsg)
+		}
+	})
+}

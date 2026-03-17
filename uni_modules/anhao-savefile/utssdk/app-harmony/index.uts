@@ -1,0 +1,124 @@
+import { SaveRemoteFileOptions, SaveRemoteFileFunction, extractFileName } from '../interface.uts'
+
+import { BusinessError } from '@kit.BasicServicesKit'
+import { picker } from '@kit.CoreFileKit'
+import fs from '@ohos.file.fs'
+import { http } from '@kit.NetworkKit'
+
+/**
+ * 根据文件后缀获取文件类型描述（用于 Picker 过滤显示）
+ */
+function getFileTypeDescription(extension : string) : string {
+	switch (extension.toLowerCase()) {
+		case '.mp3':
+		case '.m4a':
+		case '.wav':
+		case '.flac':
+			return '音频文件'
+		case '.mp4':
+		case '.mov':
+		case '.avi':
+		case '.mkv':
+			return '视频文件'
+		case '.jpg':
+		case '.jpeg':
+		case '.png':
+		case '.gif':
+		case '.webp':
+			return '图片文件'
+		case '.pdf':
+			return 'PDF文档'
+		case '.doc':
+		case '.docx':
+			return 'Word文档'
+		case '.xls':
+		case '.xlsx':
+			return 'Excel文档'
+		case '.txt':
+			return '文本文档'
+		case '.zip':
+		case '.rar':
+		case '.7z':
+			return '压缩文件'
+		default:
+			return '文件'
+	}
+}
+
+export const saveRemoteFile : SaveRemoteFileFunction = (options : SaveRemoteFileOptions) => {
+	const name = (options.saveName != null && options.saveName!.length > 0)
+		? options.saveName!
+		: extractFileName(options.url)
+
+	const context : Context = getContext()
+
+	try {
+		// 第一步：让用户选择保存位置
+		const documentSaveOptions = new picker.DocumentSaveOptions()
+		documentSaveOptions.newFileNames = [name]
+
+		const fileSuffix = name.lastIndexOf('.') >= 0
+			? name.substring(name.lastIndexOf('.'))
+			: ''
+		const fileTypeDesc = getFileTypeDescription(fileSuffix)
+		documentSaveOptions.fileSuffixChoices = [`${fileTypeDesc}|${fileSuffix}`]
+
+		const documentViewPicker = new picker.DocumentViewPicker(context)
+
+		documentViewPicker.save(documentSaveOptions)
+			.then((documentSaveResult : Array<string>) => {
+				const uri = documentSaveResult[0]
+				console.info('anhao-savefile [HarmonyOS] 用户选择保存位置:', uri)
+
+				// 第二步：HTTP 下载文件内容
+				const httpRequest = http.createHttp()
+				const requestOptions : http.HttpRequestOptions = {
+					method: http.RequestMethod.GET,
+					expectDataType: http.HttpDataType.ARRAY_BUFFER,
+					usingCache: false,
+					connectTimeout: 60000,
+					readTimeout: 60000,
+					maxLimit: 100 * 1024 * 1024,
+				}
+
+				httpRequest.request(options.url, requestOptions, (err : BusinessError, data : http.HttpResponse) => {
+					if (!err) {
+						try {
+							// 第三步：写入文件
+							if (fs.accessSync(uri)) {
+								fs.unlinkSync(uri)
+							}
+							const file = fs.openSync(uri, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE)
+							if (data.result instanceof ArrayBuffer) {
+								fs.writeSync(file.fd, data.result)
+							} else {
+								fs.writeSync(file.fd, String(data.result))
+							}
+							fs.closeSync(file.fd)
+							console.info('anhao-savefile [HarmonyOS] 文件保存成功:', uri)
+							options.success?.(uri)
+						} catch (fileErr) {
+							console.error('anhao-savefile [HarmonyOS] 文件写入失败:', JSON.stringify(fileErr))
+							options.fail?.('文件保存失败，请重试')
+						}
+					} else {
+						console.error('anhao-savefile [HarmonyOS] 下载失败:', err)
+						options.fail?.('下载失败：' + err.message)
+					}
+					httpRequest.destroy()
+				})
+			})
+			.catch((err : BusinessError) => {
+				if (err.code === 13900042) {
+					// 用户取消选择
+					options.fail?.('用户取消保存')
+				} else {
+					console.error('anhao-savefile [HarmonyOS] 选择保存位置失败:', err)
+					options.fail?.('选择保存位置失败')
+				}
+			})
+	} catch (err) {
+		console.error('anhao-savefile [HarmonyOS] 异常:', JSON.stringify(err))
+		options.fail?.('下载失败，请重试')
+	}
+}

@@ -1,0 +1,48 @@
+/**
+ * saveRemoteFile 入参
+ */
+export type SaveRemoteFileOptions = {
+	url : string                                    // 远程文件 URL（必填）
+	saveName ?: string | null                       // 保存文件名（可选，不填则从 URL 提取）
+	success ?: ((path : string) => void) | null     // 成功回调，返回保存路径
+	fail ?: ((msg : string) => void) | null         // 失败回调，返回错误信息
+}
+
+/** 主函数类型 */
+export type SaveRemoteFileFunction = (options : SaveRemoteFileOptions) => void
+
+/**
+ * 从 URL 提取文件名
+ * 例：https://x.com/a/b.pdf?v=1 → b.pdf
+ */
+export function extractFileName(url : string) : string {
+	const idx = url.lastIndexOf('/')
+	const full = idx >= 0 ? url.substring(idx + 1) : url
+	const qIdx = full.indexOf('?')
+	const name = qIdx >= 0 ? full.substring(0, qIdx) : full
+	return name.length > 0 ? name : 'download'
+}
+
+/**
+ * 根据文件扩展名推断 MIME 类型
+ */
+export function getMimeType(name : string) : string {
+	const dot = name.lastIndexOf('.')
+	const ext = dot >= 0 ? name.substring(dot).toLowerCase() : ''
+	switch (ext) {
+		case '.pdf':  return 'application/pdf'
+		case '.doc':  return 'application/msword'
+		case '.docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+		case '.xls':  return 'application/vnd.ms-excel'
+		case '.xlsx': return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+		case '.jpg':
+		case '.jpeg': return 'image/jpeg'
+		case '.png':  return 'image/png'
+		case '.gif':  return 'image/gif'
+		case '.mp4':  return 'video/mp4'
+		case '.mp3':  return 'audio/mpeg'
+		case '.zip':  return 'application/zip'
+		case '.txt':  return 'text/plain'
+		default:      return 'application/octet-stream'
+	}
+}
