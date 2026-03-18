@@ -110,6 +110,13 @@ const getArtistNames = (artists) => {
 
 // 播放歌曲
 const playSong = (song) => {
+  // 将整个本地歌曲列表替换到播放列表中
+  const allLocalSongs = musicStore.getAllLocalSongs();
+  if (allLocalSongs && allLocalSongs.length > 0) {
+    musicStore.setPlaylist(allLocalSongs, song.id);
+  }
+  
+  // 播放当前歌曲
   musicStore.playLocalSong(song);
   uni.navigateTo({
     url: `/pages/player/player?id=${song.id}&local=1`  // 可选参数，用于播放页面区分本地歌曲

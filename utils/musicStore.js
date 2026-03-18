@@ -939,7 +939,15 @@ const playFromPlaylist = (index, isHistoryOperation = false) => {
 	state.playlistIndex = index
 	const song = state.playlist[index]
 	state.currentSong = song
-	playSongById(song.id)
+	
+	// 判断是否是本地歌曲（检查是否有 localPath 属性）
+	if (song.localPath) {
+		// 本地歌曲，使用本地播放
+		playLocalSong(song)
+	} else {
+		// 在线歌曲，使用在线播放
+		playSongById(song.id)
+	}
 	
 	return true
 }
