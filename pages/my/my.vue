@@ -74,7 +74,7 @@
 			<!-- 音乐服务 -->
 			<view class="service-section">
 				<view class="service-grid">
-					<view class="service-item" v-for="(item, index) in services" :key="index">
+					<view class="service-item" v-for="(item, index) in services" :key="index" @click="handleServiceClick(item)">
 						<view class="service-icon">
 							<i class="iconfont service-iconfont" :class="'icon-' + item.icon" :style="{ color: item.color }" />
 						</view>
@@ -450,6 +450,15 @@ const initData = async () => {
 		// console.log('无本地 cookie，未登录')
 	}
 }
+
+const handleServiceClick = (item) => {
+  if (item.name === '本地/下载') {
+    uni.navigateTo({
+      url: '/pages/local/local'
+    });
+  }
+  // 可根据其他服务项添加跳转，如云盘、已购、最近等
+};
 
 // 使用 onShow 而不是 onMounted，确保每次进入页面都会刷新数据
 // onShow(() => {

@@ -107,7 +107,7 @@
 				<i class="iconfont action-icon" :class="musicStore.state.isLiked ? 'icon-xihuan' : 'icon-xihuan1'" :style="{ color: musicStore.state.isLiked ? '#EC4141' : '' }" />
 				<text class="action-badge" v-if="musicStore.state.redCount > 0">{{ musicStore.redCountStr.value }}</text>
 			</view>
-			<view class="action-item">
+			<view class="action-item" @click="handleDownload">
 				<i class="iconfont icon-xiazai action-icon" />
 			</view>
 			<view class="action-item">
@@ -167,7 +167,7 @@
 					<i class="iconfont menu-icon" :class="musicStore.state.isLiked ? 'icon-xihuan' : 'icon-xihuan1'" :style="{ color: musicStore.state.isLiked ? '#EC4141' : '' }" />
 					<text class="menu-text">收藏</text>
 				</view>
-				<view class="menu-option">
+				<view class="menu-option" @click="handleDownload">
 					<i class="iconfont menu-icon icon-xiazai" />
 					<text class="menu-text">下载</text>
 				</view>
@@ -648,6 +648,18 @@ const navigateToArtist = () => {
 		url: `/pages/artist/artist?id=${artistId}`
 	})
 }
+
+const handleDownload = async () => {
+  if (!musicStore.state.currentSong) {
+    uni.showToast({ title: '暂无歌曲', icon: 'none' });
+    return;
+  }
+  const success = await musicStore.downloadSong(musicStore.state.currentSong);
+  if (success) {
+    showMoreMenu.value = false;
+  }
+};
+
 
 // 页面加载时获取参数并播放
 onMounted(() => {

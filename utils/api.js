@@ -657,6 +657,14 @@ export const getArtistDetailDynamic = (id) => {
 	return get('/artist/detail/dynamic', { id })
 }
 
+/**
+ * 获取歌曲下载链接
+ * @param {Number} id - 歌曲 id
+ */
+export const getSongUrlMatch = (id) => {
+	return get('/song/url/match', { id });
+};
+
 export default {
 	// 首页
 	getBanner,
@@ -741,5 +749,7 @@ export default {
 	getArtistMv,
 	getArtistFollowCount,
 	getUgcArtist,
-	getArtistDetailDynamic
+	getArtistDetailDynamic,
+	// 歌曲下载
+	getSongUrlMatch,
 }

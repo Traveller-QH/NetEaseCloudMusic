@@ -2,7 +2,11 @@
  * 全局音乐播放状态管理
  */
 import { reactive, ref, computed } from 'vue'
-import { getSongDetail, getSongUrl, getLyric, getSongComment, getSongRedCount, toggleSongLike, checkSongLike } from './api.js'
+import {
+	getSongDetail, getSongUrl, getLyric, getSongComment, getSongRedCount, toggleSongLike, checkSongLike,
+	getSongUrlMatch
+} from './api.js'
+import { saveRemoteFile } from '@/uni_modules/anhao-savefile'
 
 // 当前播放请求ID，用于处理并发播放请求
 let currentPlayId = 0
@@ -285,6 +289,8 @@ const state = reactive({
 	playMode: 'list',
 	// 播放历史栈 (记录随机播放时的路径，用于上一首功能)
 	playHistory: [],
+	// 是否播放本地文件
+	localPlaying: false,
 })
 
 // 歌曲名称
@@ -1107,6 +1113,143 @@ const loadAllSongsForPlaylist = async (playlistId, fetchFunction, options = {}) 
 	return loadAllTask
 }
 
+// 下载歌曲
+const downloadSong = async (song) => {
+	if (!song || !song.id) {
+		uni.showToast({ title: '歌曲信息无效', icon: 'none' });
+		return false;
+	}
+
+	// 检查是否已下载
+	const localSongs = getAllLocalSongs();
+	if (localSongs.some(s => s.id === song.id)) {
+		uni.showToast({ title: '歌曲已下载', icon: 'none' });
+		return false;
+	}
+
+	// 1. 获取下载地址
+	uni.showLoading({ title: '获取下载链接...' });
+	try {
+		const res = await getSongUrlMatch(song.id);
+		if (res.code !== 200 || !res.data) {
+			uni.hideLoading();
+			uni.showToast({ title: '获取下载链接失败', icon: 'none' });
+			return false;
+		}
+		const downloadUrl = res.data;
+
+		// 2. 构造保存的文件名：歌名-歌手.mp3
+		const artists = song.ar || song.artists || [];
+		const artistStr = artists.map(a => a.name).join('&') || '未知歌手';
+		// 过滤文件名中不允许的字符（参考 Windows/Linux/Android 常见非法字符）
+		const safeName = (song.name || '未知歌曲').replace(/[\\/:*?"<>|]/g, ' ');
+		const safeArtist = artistStr.replace(/[\\/:*?"<>|]/g, ' ');
+		const fileName = `${safeName}-${safeArtist}.mp3`;
+
+		// 3. 使用插件下载并保存
+		uni.showLoading({ title: '下载中...', mask: true });
+
+		return new Promise((resolve) => {
+			saveRemoteFile({
+				url: downloadUrl,
+				saveName: fileName,
+				success: (path) => {
+					// 保存成功，path 为最终文件路径
+					const localSongInfo = {
+						id: song.id,
+						name: song.name,
+						artists: artists,
+						album: song.al || song.album,
+						localPath: path,
+						// 文件大小可以通过其他方式获取，这里先置为0或从响应头读取（可选）
+						size: 0,
+						downloadTime: Date.now()
+					};
+
+					const list = getAllLocalSongs();
+					list.push(localSongInfo);
+					uni.setStorageSync('localSongs', list);
+
+					uni.hideLoading();
+					uni.showToast({ title: '下载完成', icon: 'success' });
+					resolve(true);
+				},
+				fail: (msg) => {
+					uni.hideLoading();
+					uni.showToast({ title: msg || '下载失败', icon: 'none' });
+					resolve(false);
+				}
+			});
+		});
+
+	} catch (error) {
+		console.error('下载失败', error);
+		uni.hideLoading();
+		uni.showToast({ title: '下载失败', icon: 'none' });
+		return false;
+	}
+};
+
+// 获取所有本地歌曲
+const getAllLocalSongs = () => {
+	try {
+		const list = uni.getStorageSync('localSongs');
+		return Array.isArray(list) ? list : [];
+	} catch (e) {
+		return [];
+	}
+};
+
+// 删除本地歌曲
+const deleteLocalSong = (id) => {
+	return new Promise((resolve) => {
+		const list = getAllLocalSongs();
+		const index = list.findIndex(s => s.id === id);
+		if (index === -1) {
+			resolve({ success: false, message: '歌曲不存在' });
+			return;
+		}
+		list.splice(index, 1);
+		uni.setStorageSync('localSongs', list);
+		resolve({ success: true });
+	});
+};
+
+// 播放本地歌曲
+const playLocalSong = (song) => {
+	if (!song || !song.localPath) {
+		uni.showToast({ title: '本地文件不存在', icon: 'none' });
+		return;
+	}
+
+	// 设置当前歌曲信息（与网络歌曲结构一致，以便复用 UI）
+	state.currentSong = {
+		id: song.id,
+		name: song.name,
+		ar: song.artists,
+		al: song.album,
+		localPath: song.localPath  // 标记为本地文件
+	};
+
+	// 重置歌词和播放状态
+	state.lyrics = [];
+	state.currentLyricIndex = 0;
+	state.commentCount = 0;
+	state.redCount = 0;
+	state.redCountDesc = '0';
+	state.isLiked = false;
+	state.isPlaying = true;
+
+	// 使用本地歌曲的 id 请求接口获取歌词、评论、红心等信息
+	fetchLyric(song.id);
+	fetchCommentCount(song.id);
+	fetchRedCount(song.id);
+	checkLikeStatus(song.id);
+
+	// 更新音频播放器源（AudioPlayerManager 应支持本地路径）
+	AudioPlayerManager.safePlay(song.localPath);
+};
+
 // 导出
 export const useMusicStore = () => {
 	return {
@@ -1145,7 +1288,12 @@ export const useMusicStore = () => {
 		getPreloadData,
 		setPreloadData,
 		resetPreloadData,
-		loadAllSongsForPlaylist // 全量加载歌曲
+		loadAllSongsForPlaylist, // 全量加载歌曲
+		// 歌曲下载相关方法
+		downloadSong,
+		getAllLocalSongs,
+		deleteLocalSong,
+		playLocalSong
 	}
 }
 

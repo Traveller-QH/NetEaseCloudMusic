@@ -104,6 +104,13 @@
         "navigationStyle": "custom",
         "navigationBarTitleText": "关于"
       }
+    },
+    {
+      "path": "pages/local/local",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "本地/下载"
+      }
     }
   ],
   "globalStyle": {
