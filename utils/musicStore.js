@@ -6,7 +6,10 @@ import {
 	getSongDetail, getSongUrl, getLyric, getSongComment, getSongRedCount, toggleSongLike, checkSongLike,
 	getSongUrlMatch
 } from './api.js'
+
+// #ifdef APP-PLUS
 import { saveRemoteFile } from '@/uni_modules/anhao-savefile'
+// #endif
 
 // 当前播放请求ID，用于处理并发播放请求
 let currentPlayId = 0
@@ -1121,8 +1124,9 @@ const loadAllSongsForPlaylist = async (playlistId, fetchFunction, options = {}) 
 	return loadAllTask
 }
 
-// 下载歌曲
+// 下载歌曲（仅 App 端支持）
 const downloadSong = async (song) => {
+	// #ifdef APP-PLUS
 	if (!song || !song.id) {
 		uni.showToast({ title: '歌曲信息无效', icon: 'none' });
 		return false;
@@ -1146,7 +1150,7 @@ const downloadSong = async (song) => {
 		}
 		const downloadUrl = res.data;
 
-		// 2. 构造保存的文件名：歌名-歌手.mp3
+		// 2. 构造保存的文件名：歌名 - 歌手.mp3
 		const artists = song.ar || song.artists || [];
 		const artistStr = artists.map(a => a.name).join('&') || '未知歌手';
 		// 过滤文件名中不允许的字符（参考 Windows/Linux/Android 常见非法字符）
@@ -1169,7 +1173,7 @@ const downloadSong = async (song) => {
 						artists: artists,
 						album: song.al || song.album,
 						localPath: path,
-						// 文件大小可以通过其他方式获取，这里先置为0或从响应头读取（可选）
+						// 文件大小可以通过其他方式获取，这里先置为 0 或从响应头读取（可选）
 						size: 0,
 						downloadTime: Date.now()
 					};
@@ -1196,6 +1200,13 @@ const downloadSong = async (song) => {
 		uni.showToast({ title: '下载失败', icon: 'none' });
 		return false;
 	}
+	// #endif
+
+	// #ifndef APP-PLUS
+	console.warn('H5 端不支持下载功能');
+	uni.showToast({ title: '请在 App 端使用下载功能', icon: 'none' });
+	return false;
+	// #endif
 };
 
 // 获取所有本地歌曲
