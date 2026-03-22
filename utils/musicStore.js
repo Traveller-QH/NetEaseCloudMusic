@@ -4,8 +4,22 @@
 import { reactive, ref, computed } from 'vue'
 import {
 	getSongDetail, getSongUrl, getLyric, getSongComment, getSongRedCount, toggleSongLike, checkSongLike,
-	getSongUrlMatch
+	getSongUrlMatch, searchMatch
 } from './api.js'
+import {
+	scanSystemMusicFiles,
+	batchMatchSongs,
+	calculateFileMD5
+} from './localMusicScanner.js'
+
+// 本地歌曲扫描相关常量
+const LOCAL_SONGS_CACHE_KEY = 'localSongs' // 本地歌曲缓存键
+const SCAN_TIME_CACHE_KEY = 'localSongsScanTime' // 扫描时间缓存键
+const CACHE_VALID_DURATION = 24 * 60 * 60 * 1000 // 缓存有效期 24 小时
+
+// 当前扫描状态
+let isScanning = false
+let scanProgress = { current: 0, total: 0, percent: 0 }
 
 // #ifdef APP-PLUS
 import { saveRemoteFile } from '@/uni_modules/anhao-savefile'
@@ -1222,14 +1236,169 @@ const downloadSong = async (song) => {
 	// #endif
 };
 
-// 获取所有本地歌曲
+// 获取所有本地歌曲（从缓存读取）
 const getAllLocalSongs = () => {
 	try {
-		const list = uni.getStorageSync('localSongs');
+		const list = uni.getStorageSync(LOCAL_SONGS_CACHE_KEY);
 		return Array.isArray(list) ? list : [];
 	} catch (e) {
 		return [];
 	}
+};
+
+/**
+ * 检查缓存是否有效
+ * @returns {Boolean} - 缓存是否有效
+ */
+const isCacheValid = () => {
+	try {
+		const scanTime = uni.getStorageSync(SCAN_TIME_CACHE_KEY);
+		if (!scanTime) return false;
+		
+		const now = Date.now();
+		return (now - scanTime) < CACHE_VALID_DURATION;
+	} catch (e) {
+		return false;
+	}
+};
+
+/**
+ * 保存本地歌曲到缓存
+ * @param {Array} songs - 歌曲列表
+ */
+const saveLocalSongsToCache = (songs) => {
+	try {
+		uni.setStorageSync(LOCAL_SONGS_CACHE_KEY, songs);
+		uni.setStorageSync(SCAN_TIME_CACHE_KEY, Date.now());
+		console.log(`已保存 ${songs.length} 首本地歌曲到缓存`);
+	} catch (e) {
+		console.error('保存本地歌曲缓存失败:', e);
+	}
+};
+
+/**
+ * 清除本地歌曲缓存
+ */
+const clearLocalSongsCache = () => {
+	try {
+		uni.removeStorageSync(LOCAL_SONGS_CACHE_KEY);
+		uni.removeStorageSync(SCAN_TIME_CACHE_KEY);
+		console.log('已清除本地歌曲缓存');
+	} catch (e) {
+		console.error('清除缓存失败:', e);
+	}
+};
+
+/**
+ * 扫描并匹配本地歌曲（强制重新扫描）
+ * @param {Object} options - 选项参数
+ * @param {Boolean} options.forceScan - 是否强制扫描（忽略缓存）
+ * @param {Function} options.onProgress - 进度回调函数
+ * @returns {Promise<Array>} - 匹配后的歌曲列表
+ */
+const scanAndMatchLocalSongs = async (options = {}) => {
+	const { forceScan = false, onProgress = null } = options;
+	
+	// #ifdef APP-PLUS
+	// 检查是否需要扫描
+	if (!forceScan && isCacheValid()) {
+		console.log('使用缓存的本地歌曲');
+		const cachedSongs = getAllLocalSongs();
+		if (cachedSongs.length > 0) {
+			return cachedSongs;
+		}
+	}
+	
+	// 如果正在扫描中，返回当前结果
+	if (isScanning) {
+		console.log('已在扫描中');
+		return getAllLocalSongs();
+	}
+	
+	try {
+		isScanning = true;
+		scanProgress = { current: 0, total: 0, percent: 0 };
+		
+		// 1. 扫描系统音乐文件
+		if (onProgress) {
+			onProgress({ stage: 'scanning', message: '正在扫描本地音乐文件...', progress: 0 });
+		}
+		
+		const rawMusicFiles = await scanSystemMusicFiles();
+		console.log(`扫描到 ${rawMusicFiles.length} 首本地音乐文件`);
+		
+		if (rawMusicFiles.length === 0) {
+			// 没有找到音乐文件，清空缓存
+			clearLocalSongsCache();
+			isScanning = false;
+			return [];
+		}
+		
+		// 2. 批量匹配歌曲信息
+		if (onProgress) {
+			onProgress({ stage: 'matching', message: '正在匹配歌曲信息...', progress: 30 });
+		}
+		
+		const matchedSongs = await batchMatchSongs(
+			rawMusicFiles,
+			searchMatch,
+			(matchProgress) => {
+				const baseProgress = 30; // 扫描占 30%
+				const matchProgressPercent = (matchProgress.percent / 100) * 70; // 匹配占 70%
+				const totalProgress = baseProgress + matchProgressPercent;
+				
+				if (onProgress) {
+					onProgress({
+						stage: 'matching',
+						message: `正在匹配歌曲信息... (${matchProgress.current}/${matchProgress.total})`,
+						progress: Math.round(totalProgress),
+						detail: matchProgress
+					});
+				}
+			}
+		);
+		
+		// 3. 保存到缓存
+		saveLocalSongsToCache(matchedSongs);
+		
+		isScanning = false;
+		
+		if (onProgress) {
+			onProgress({ stage: 'complete', message: '扫描完成', progress: 100 });
+		}
+		
+		console.log(`扫描并匹配完成，共 ${matchedSongs.length} 首歌曲`);
+		return matchedSongs;
+		
+	} catch (error) {
+		console.error('扫描本地歌曲失败:', error);
+		isScanning = false;
+		
+		if (onProgress) {
+			onProgress({ stage: 'error', message: '扫描失败：' + error.message, progress: 0 });
+		}
+		
+		// 返回空数组或缓存数据
+		return forceScan ? [] : getAllLocalSongs();
+	}
+	// #endif
+	
+	// #ifndef APP-PLUS
+	console.warn('非 App 端不支持扫描本地音乐');
+	return Promise.resolve([]);
+	// #endif
+};
+
+/**
+ * 获取扫描状态
+ * @returns {Object} - 扫描状态
+ */
+const getScanState = () => {
+	return {
+		isScanning,
+		progress: scanProgress,
+		isCacheValid: isCacheValid()
+	};
 };
 
 // 删除本地歌曲
@@ -1325,7 +1494,11 @@ export const useMusicStore = () => {
 		downloadSong,
 		getAllLocalSongs,
 		deleteLocalSong,
-		playLocalSong
+		playLocalSong,
+		// 本地歌曲扫描相关方法
+		scanAndMatchLocalSongs,
+		getScanState,
+		clearLocalSongsCache
 	}
 }
 

@@ -665,6 +665,21 @@ export const getSongUrlMatch = (id) => {
 	return get('/song/url/match', { id });
 };
 
+/**
+ * 本地歌曲文件匹配网易云歌曲信息
+ * 说明：调用此接口可以为本地歌曲文件搜索匹配歌曲 ID、专辑封面等信息
+ * @param {Object} params - 匹配参数
+ * @param {String} params.title - 文件的标题信息，是文件属性里的标题属性，并非文件名
+ * @param {String} params.artist - 文件的艺术家信息
+ * @param {Number} params.duration - 文件的时长，单位为秒
+ * @param {String} params.md5 - 文件的 md5
+ * @param {String} params.album - 文件的专辑信息（可选）
+ */
+export const searchMatch = (params) => {
+	const { title, artist, duration, md5, album = '' } = params
+	return get('/search/match', { title, artist, duration, md5, album })
+}
+
 export default {
 	// 首页
 	getBanner,
@@ -714,6 +729,7 @@ export default {
 	getSearchDefault,
 	getSearchHot,
 	getSearchSuggest,
+	searchMatch,
 	// 排行榜
 	getToplistDetail,
 	getToplist,

@@ -1,7 +1,8 @@
 <template>
+  <!-- 状态栏占位块 -->
+  <view class="status_bar" />
+
   <view class="local-page">
-    <!-- 状态栏占位块 -->
-    <view class="status_bar" />
 
     <!-- 自定义顶部导航栏 -->
     <view class="custom-navbar">
@@ -152,10 +153,46 @@ const deleteSong = (song) => {
   });
 };
 
-// 刷新（直接从computed获取最新，此函数可留空或用于手动触发重新扫描）
-const refreshLocalSongs = () => {
-  // 如果以后需要手动扫描文件系统，可以在这里实现
-}
+// 刷新（手动触发重新扫描）
+const refreshLocalSongs = async () => {
+  console.log('点击刷新按钮');
+  
+  // 如果正在扫描中，提示用户
+  const scanState = musicStore.getScanState();
+  if (scanState.isScanning) {
+    uni.showToast({ title: '正在扫描中...', icon: 'none' });
+    return;
+  }
+  
+  // 显示加载提示
+  uni.showLoading({ title: '开始扫描...', mask: true });
+  
+  try {
+    // 强制重新扫描并匹配
+    await musicStore.scanAndMatchLocalSongs({
+      forceScan: true,
+      onProgress: (progressInfo) => {
+        console.log('扫描进度:', progressInfo);
+        // 扫描完成时隐藏 loading
+        if (progressInfo.stage === 'complete') {
+          uni.hideLoading();
+          uni.showToast({ 
+            title: `扫描完成，共${musicStore.getAllLocalSongs().length}首歌曲`, 
+            icon: 'success',
+            duration: 2000
+          });
+        } else if (progressInfo.stage === 'error') {
+          uni.hideLoading();
+          uni.showToast({ title: progressInfo.message, icon: 'none', duration: 3000 });
+        }
+      }
+    });
+  } catch (error) {
+    console.error('扫描失败:', error);
+    uni.hideLoading();
+    uni.showToast({ title: '扫描失败：' + (error.message || '未知错误'), icon: 'none', duration: 3000 });
+  }
+};
 
 // 返回上一页
 const handleBack = () => {
