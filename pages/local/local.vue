@@ -90,8 +90,15 @@ import PlayBar from '@/components/PlayBar/PlayBar.vue'
 
 const musicStore = useMusicStore()
 
-// 本地歌曲列表直接从store获取（computed会自动响应变化）
-const localSongs = computed(() => musicStore.getAllLocalSongs())
+// 刷新计数器，用于强制页面重新渲染
+const refreshCounter = ref(0)
+
+// 本地歌曲列表直接从 store 获取（computed 会自动响应变化）
+const localSongs = computed(() => {
+  // 依赖 refreshCounter，当它变化时会重新计算
+  refreshCounter.value
+  return musicStore.getAllLocalSongs()
+})
 
 // 计算总大小（累加所有歌曲的实际文件大小）
 const totalSizeStr = computed(() => {
@@ -211,9 +218,11 @@ const refreshLocalSongs = async () => {
       forceScan: true,
       onProgress: (progressInfo) => {
         // console.log('扫描进度:', progressInfo);
-        // 扫描完成时隐藏 loading
+        // 扫描完成时隐藏 loading 并触发刷新
         if (progressInfo.stage === 'complete') {
           uni.hideLoading();
+          // 强制刷新页面：增加计数器，触发 computed 重新计算
+          refreshCounter.value++;
           uni.showToast({ 
             title: `扫描完成，共${musicStore.getAllLocalSongs().length}首歌曲`, 
             icon: 'success',
