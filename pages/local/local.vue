@@ -135,9 +135,9 @@ const getArtistNames = (song) => {
     const fileName = song.localPath.split('/').pop()
     const parsed = parseFileName(fileName)
     
-    // 如果文件名能解析出歌手名，返回解析结果
+    // 如果文件名能解析出歌手名，返回解析结果（将 & 替换为 /）
     if (parsed.artist) {
-      return parsed.artist
+      return parsed.artist.replace(/&/g, '/').trim()
     }
   }
   
