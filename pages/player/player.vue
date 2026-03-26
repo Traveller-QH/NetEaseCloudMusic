@@ -21,7 +21,7 @@
 						<text class="song-name" v-if="songNameNeedScroll">{{ musicStore.songName.value || '加载中...' }}</text>
 					</view>
 				</view>
-				<view class="artist-name-wrapper">
+				<view class="artist-name-wrapper" @click="navigateToArtist">
 					<view class="scroll-container" :class="{ 'scrolling': artistNameNeedScroll }">
 						<text class="artist-name">{{ musicStore.artistNames.value || '未知歌手' }}</text>
 						<text class="artist-name" v-if="artistNameNeedScroll">{{ musicStore.artistNames.value || '未知歌手' }}</text>
@@ -188,7 +188,7 @@
 				</view>
 				<view class="menu-option" @click="navigateToArtist">
 					<i class="iconfont menu-icon icon-yingyonggongzuotai-yishujiafuwugongzuotai-jieshaorenziliao" />
-					<text class="menu-text">歌手：{{ firstArtistName }}</text>
+					<text class="menu-text">歌手：{{ musicStore.artistNames.value || '未知歌手' }}</text>
 				</view>
 			</view>
 
@@ -203,7 +203,45 @@
 				</view>
 			</view>
 		</view>
-		</u-popup>
+  </u-popup>
+
+	<!-- 歌手选择弹窗 -->
+	<u-popup v-model:show="showArtistSelector" mode="bottom" :round="20">
+		<view class="artist-selector">
+			<!-- 标题栏 -->
+			<view class="artist-header">
+				<text class="artist-title">该歌曲有多个歌手</text>
+			</view>
+
+			<!-- 分割线 -->
+			<view class="artist-divider"></view>
+
+			<!-- 歌手列表 -->
+			<scroll-view scroll-y class="artist-list">
+				<view
+					v-for="artist in artistList"
+					:key="artist.id"
+					class="artist-item"
+					@click="selectArtist(artist.id)"
+				>
+					<!-- 歌手头像 -->
+					<image
+						v-if="artistsDetailMap[artist.id]?.cover"
+						class="artist-avatar"
+						:src="artistsDetailMap[artist.id].cover"
+						mode="aspectFill"
+					></image>
+					<i
+						v-else
+						class="iconfont icon-yingyonggongzuotai-yishujiafuwugongzuotai-jieshaorenziliao artist-avatar-icon"
+					/>
+
+					<!-- 歌手名称 -->
+					<text class="artist-name">{{ artist.name }}</text>
+				</view>
+			</scroll-view>
+		</view>
+	</u-popup>
 
 	<!-- 音质选择弹窗 -->
 	<u-popup v-model:show="showQualitySelector" mode="bottom" :round="20">
@@ -247,6 +285,7 @@
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue'
 import { useMusicStore } from '@/utils/musicStore.js'
 import PlaylistPopup from '@/components/PlaylistPopup/PlaylistPopup.vue'
+import { getArtistDetail } from '@/utils/api.js'
 
 defineProps({
   id: {
@@ -324,6 +363,7 @@ onUnmounted(() => {
 const showMoreMenu = ref(false)
 const showQualitySelector = ref(false)
 const showPlaylistPopup = ref(false) // 播放列表弹窗
+const showArtistSelector = ref(false) // 歌手选择弹窗
 
 // 循环模式图标
 const playModeIconClass = computed(() => {
@@ -333,14 +373,19 @@ const playModeIconClass = computed(() => {
   return 'icon-liebiaoxunhuan'
 })
 
-// 计算属性
-const albumName = computed(() => {
-	return musicStore.state.currentSong?.al?.name || '未知专辑'
+// 计算属性 - 歌手列表（用于判断是否有多个歌手）
+const artistList = computed(() => {
+	const artists = musicStore.state.currentSong?.ar || musicStore.state.currentSong?.artists || []
+	return artists
 })
 
-const firstArtistName = computed(() => {
-	const artists = musicStore.state.currentSong?.ar || musicStore.state.currentSong?.artists || []
-	return artists.length > 0 ? artists[0].name : '未知歌手'
+// 计算属性 - 是否有多歌手
+const hasMultipleArtists = computed(() => {
+	return artistList.value.length > 1
+})
+
+const albumName = computed(() => {
+	return musicStore.state.currentSong?.al?.name || '未知专辑'
 })
 
 const currentQualityName = computed(() => {
@@ -631,8 +676,8 @@ const navigateToAlbum = () => {
 	})
 }
 
-// 跳转到歌手页面
-const navigateToArtist = () => {
+// 跳转到歌手页面（处理多歌手情况）
+const navigateToArtist = async () => {
 	const artists = musicStore.state.currentSong?.ar || musicStore.state.currentSong?.artists || []
 	if (!artists || artists.length === 0) {
 		uni.showToast({
@@ -642,8 +687,54 @@ const navigateToArtist = () => {
 		return
 	}
 	
-	const artistId = artists[0].id
-	showMoreMenu.value = false
+	// 如果只有一个歌手，直接跳转
+	if (artists.length === 1) {
+		const artistId = artists[0].id
+		showMoreMenu.value = false
+		uni.navigateTo({
+			url: `/pages/artist/artist?id=${artistId}`
+		})
+	} else {
+		// 多个歌手，打开歌手选择弹窗
+		showMoreMenu.value = false
+		showArtistSelector.value = true
+		// 预加载所有歌手详情
+		await loadAllArtistsDetail(artists)
+	}
+}
+
+// 存储歌手详情数据
+const artistsDetailMap = ref({})
+
+// 批量加载歌手详情
+const loadAllArtistsDetail = async (artists) => {
+	try {
+		// 为每个歌手加载详情
+		const loadPromises = artists.map(async (artist) => {
+			if (artistsDetailMap.value[artist.id]) {
+				// 已缓存，跳过
+				return
+			}
+			
+			try {
+				const res = await getArtistDetail(artist.id)
+				if (res.code === 200 && res.data && res.data.artist) {
+					artistsDetailMap.value[artist.id] = res.data.artist
+				}
+			} catch (error) {
+				console.error(`加载歌手 ${artist.name} 详情失败:`, error)
+			}
+		})
+		
+		await Promise.all(loadPromises)
+	} catch (error) {
+		console.error('批量加载歌手详情失败:', error)
+	}
+}
+
+// 点击选择某个歌手
+const selectArtist = (artistId) => {
+	showArtistSelector.value = false
 	uni.navigateTo({
 		url: `/pages/artist/artist?id=${artistId}`
 	})
@@ -1316,6 +1407,75 @@ onMounted(() => {
 					font-size: 28rpx;
 					color: #fff;
 				}
+			}
+		}
+	}
+}
+
+// 歌手选择弹窗样式
+.artist-selector {
+	padding-bottom: env(safe-area-inset-bottom);
+	background: #fff;
+
+	.artist-header {
+		padding: 40rpx 30rpx 30rpx;
+
+		.artist-title {
+			font-size: 32rpx;
+			font-weight: bold;
+			color: #333;
+		}
+	}
+
+	.artist-divider {
+		height: 1rpx;
+		background: #f0f0f0;
+		margin: 0 30rpx;
+	}
+
+	.artist-list {
+		max-height: 800rpx;
+		padding: 20rpx 0;
+
+		.artist-item {
+			display: flex;
+			align-items: center;
+			padding: 24rpx 30rpx;
+			transition: background 0.2s;
+
+			&:active {
+				background: #f5f5f5;
+			}
+
+			.artist-avatar {
+				width: 80rpx;
+				height: 80rpx;
+				border-radius: 50%;
+				flex-shrink: 0;
+				object-fit: cover;
+			}
+
+			.artist-avatar-icon {
+				width: 80rpx;
+				height: 80rpx;
+				font-size: 40rpx;
+				color: #999;
+				background: #f5f5f5;
+				border-radius: 50%;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				flex-shrink: 0;
+			}
+
+			.artist-name {
+				flex: 1;
+				margin-left: 24rpx;
+				font-size: 30rpx;
+				color: #333;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
 			}
 		}
 	}
