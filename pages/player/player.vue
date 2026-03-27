@@ -34,7 +34,7 @@
 		</view>
 
 		<!-- 唱片区域 -->
-		<view class="disc-wrapper">
+		<view class="disc-wrapper" :class="{ 'hidden': isFullscreenLyric }" @click="toggleFullscreenLyric">
 			<!-- 唱针 -->
 			<view class="needle">
 				<view class="needle-arm"></view>
@@ -55,7 +55,7 @@
 		</view>
 
 		<!-- 歌词区域 -->
-		<view class="lyric-wrapper">
+		<view class="lyric-wrapper" :class="{ 'hidden': isFullscreenLyric }" @click="toggleFullscreenLyric">
 			<scroll-view
 				scroll-y
 				class="lyric-scroll"
@@ -141,6 +141,12 @@
 		<!-- 底部安全区 -->
 		<view class="safe-bottom"></view>
 	</view>
+
+	<!-- 全屏歌词组件 -->
+	<FullscreenLyric 
+		:visible="isFullscreenLyric" 
+		@close="toggleFullscreenLyric" 
+	/>
 
 	<!-- 播放列表弹窗 -->
 	<PlaylistPopup v-model="showPlaylistPopup" />
@@ -285,6 +291,7 @@
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue'
 import { useMusicStore } from '@/utils/musicStore.js'
 import PlaylistPopup from '@/components/PlaylistPopup/PlaylistPopup.vue'
+import FullscreenLyric from '@/components/FullscreenLyric/FullscreenLyric.vue'
 import { getArtistDetail } from '@/utils/api.js'
 
 defineProps({
@@ -454,9 +461,9 @@ watch(
 	() => musicStore.state.currentLyricIndex,
 	(newIndex) => {
 		const ratio = getRpxToPx()
-		const lineHeight = 70 * ratio // 每行歌词高度70rpx
-		const placeholderHeight = 100 * ratio // 顶部占位100rpx
-		const wrapperHeight = 280 * ratio // 歌词区域高度280rpx
+		const lineHeight = 100 * ratio // 每行歌词高度 100rpx（稍微增大以适配可能的 2 行歌词）
+		const placeholderHeight = 100 * ratio // 顶部占位 100rpx
+		const wrapperHeight = 280 * ratio // 歌词区域高度 280rpx
 
 		// 计算滚动位置，让当前歌词居中显示
 		// 当前歌词的位置 = 占位高度 + 索引 * 行高
@@ -473,6 +480,14 @@ watch(
 const isDragging = ref(false)
 const dragProgress = ref(0)
 const progressBarInfo = ref({ left: 0, width: 1 })
+
+// 全屏歌词状态
+const isFullscreenLyric = ref(false)
+
+// 切换全屏歌词
+const toggleFullscreenLyric = () => {
+	isFullscreenLyric.value = !isFullscreenLyric.value
+}
 
 // 显示的进度（拖动时显示拖动进度，否则显示实际进度）
 const displayProgress = computed(() => {
@@ -871,6 +886,16 @@ onMounted(() => {
 	}
 }
 
+// 全屏歌词触发器（透明覆盖层）
+.fullscreen-trigger {
+	position: absolute;
+	top: 0; // 导航栏下方
+	left: 0;
+	right: 0;
+	bottom: 0; // 进度条上方
+	z-index: 9; // 在唱片和歌词之间
+}
+
 // 唱片区域
 .disc-wrapper {
 	flex: 1;
@@ -880,6 +905,13 @@ onMounted(() => {
 	position: relative;
 	padding: 40rpx;
 	z-index: 5; // 唱片区域层级
+	transition: opacity 0.3s ease, transform 0.3s ease;
+
+	&.hidden {
+		opacity: 0;
+		transform: scale(0.9);
+		pointer-events: none; // 隐藏时禁用点击事件
+	}
 
 	// 唱针
 	.needle {
@@ -997,6 +1029,13 @@ onMounted(() => {
 	overflow: hidden;
 	position: relative;
 	z-index: 8; // 歌词层级适中
+	transition: opacity 0.3s ease, transform 0.3s ease;
+
+	&.hidden {
+		opacity: 0;
+		transform: scale(0.95);
+		pointer-events: none; // 隐藏时禁用点击事件
+	}
 
 	.lyric-scroll {
 		height: 100%;
@@ -1007,7 +1046,7 @@ onMounted(() => {
 		}
 
 		.lyric-line {
-			min-height: 70rpx;
+			min-height: 100rpx; // 最小高度 100rpx（适配可能的 2 行歌词）
 			line-height: 36rpx;
 			padding: 17rpx 0;
 			transition: all 0.3s ease;

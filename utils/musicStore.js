@@ -460,16 +460,57 @@ const playSongById = async (id) => {
 	}
 }
 
-// 获取歌词
+// 获取歌词（包含翻译）
 const fetchLyric = async (id) => {
 	try {
 		const res = await getLyric(id)
 		if (res.code === 200 && res.lrc && res.lrc.lyric) {
-			state.lyrics = parseLyric(res.lrc.lyric)
+			// 解析原始歌词
+			const originalLyrics = parseLyric(res.lrc.lyric)
+			
+			// 解析翻译歌词（如果有）
+			let translatedLyrics = []
+			if (res.tlyric && res.tlyric.lyric) {
+				translatedLyrics = parseLyric(res.tlyric.lyric)
+			}
+			
+			// 合并翻译歌词到原始歌词
+			state.lyrics = mergeLyrics(originalLyrics, translatedLyrics)
 		}
 	} catch (error) {
 		console.error('获取歌词失败:', error)
 	}
+}
+
+// 合并原始歌词和翻译歌词
+const mergeLyrics = (originalLyrics, translatedLyrics) => {
+	if (!originalLyrics || originalLyrics.length === 0) {
+		return []
+	}
+	
+	// 如果没有翻译歌词，直接返回原始歌词
+	if (!translatedLyrics || translatedLyrics.length === 0) {
+		return originalLyrics.map(line => ({
+			time: line.time,
+			text: line.text,
+			trans: '' // 空翻译
+		}))
+	}
+	
+	// 合并翻译歌词：根据时间戳匹配
+	return originalLyrics.map(origLine => {
+		// 查找时间最接近的翻译歌词
+		const matchedTrans = translatedLyrics.find(transLine => {
+			// 允许 0.1 秒的时间误差
+			return Math.abs(transLine.time - origLine.time) < 0.1
+		})
+		
+		return {
+			time: origLine.time,
+			text: origLine.text,
+			trans: matchedTrans ? matchedTrans.text : ''
+		}
+	})
 }
 
 // 根据最高音质生成可用音质列表
