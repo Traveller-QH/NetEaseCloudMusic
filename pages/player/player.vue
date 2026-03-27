@@ -113,7 +113,7 @@
 			<view class="action-item" @click="handleDownload">
 				<i class="iconfont icon-xiazai action-icon" />
 			</view>
-			<view class="action-item">
+			<view class="action-item" @click="navigateToComments">
 				<i class="iconfont icon-pinglun action-icon" />
 				<text class="action-badge" v-if="musicStore.state.commentCount > 0">{{ musicStore.commentCountStr.value }}</text>
 			</view>
@@ -746,6 +746,24 @@ const navigateToAlbum = () => {
 	showMoreMenu.value = false
 	uni.navigateTo({
 		url: `/pages/album/album?id=${albumId}`
+	})
+}
+
+// 跳转到歌曲评论页面
+const navigateToComments = () => {
+	const songId = musicStore.state.currentSong?.id
+	const commentCount = musicStore.state.commentCount || 0
+	
+	if (!songId) {
+		uni.showToast({
+			title: '歌曲信息不可用',
+			icon: 'none'
+		})
+		return
+	}
+	
+	uni.navigateTo({
+		url: `/pages/songComments/songComments?id=${songId}&commentCount=${commentCount}`
 	})
 }
 

@@ -85,6 +85,13 @@
       }
     },
     {
+      "path": "pages/songComments/songComments",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "歌曲评论"
+      }
+    },
+    {
       "path": "pages/artist/artist",
       "style": {
         "navigationStyle": "custom",
