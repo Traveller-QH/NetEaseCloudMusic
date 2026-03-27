@@ -122,9 +122,21 @@ watch(
 	() => props.visible,
 	(newVal) => {
 		if (newVal) {
+			// 打开时：重置禁用状态并更新位置
+			disableAutoScroll.value = false
+			// 清除之前的定时器
+			if (touchTimer) {
+				clearTimeout(touchTimer)
+			}
 			setTimeout(() => {
 				updateScrollPosition()
 			}, 100)
+		} else {
+			// 关闭时：重置禁用状态，清除定时器
+			disableAutoScroll.value = false
+			if (touchTimer) {
+				clearTimeout(touchTimer)
+			}
 		}
 	}
 )
