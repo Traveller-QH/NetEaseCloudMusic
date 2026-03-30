@@ -155,7 +155,7 @@
 	<PlaylistPopup v-model="showPlaylistPopup" />
 
 	<!-- 更多选项弹窗 -->
-	<u-popup v-model:show="showMoreMenu" mode="bottom" :round="20">
+	<up-popup v-model:show="showMoreMenu" mode="bottom" :round="20">
 		<view class="more-menu">
 			<!-- 歌曲信息头部 -->
 			<view class="menu-header">
@@ -212,10 +212,10 @@
 				</view>
 			</view>
 		</view>
-  </u-popup>
+  </up-popup>
 
 	<!-- 歌手选择弹窗 -->
-	<u-popup v-model:show="showArtistSelector" mode="bottom" :round="20">
+	<up-popup v-model:show="showArtistSelector" mode="bottom" :round="20">
 		<view class="artist-selector">
 			<!-- 标题栏 -->
 			<view class="artist-header">
@@ -250,10 +250,10 @@
 				</view>
 			</scroll-view>
 		</view>
-	</u-popup>
+	</up-popup>
 
 	<!-- 音质选择弹窗 -->
-	<u-popup v-model:show="showQualitySelector" mode="bottom" :round="20">
+	<up-popup v-model:show="showQualitySelector" mode="bottom" :round="20">
 		<view class="quality-selector">
 			<!-- 标题 -->
 			<view class="quality-title">
@@ -287,7 +287,7 @@
 				</view>
 			</scroll-view>
 		</view>
-	</u-popup>
+	</up-popup>
 </template>
 
 <script setup>
