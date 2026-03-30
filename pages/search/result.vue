@@ -82,7 +82,7 @@
                 <text class="song-artist">{{ formatSongArtists(song) }} - {{ getSongAlbumName(song) }}</text>
               </view>
               <view class="song-actions">
-                <i class="iconfont icon-bofang1 play-icon" />
+                <i class="iconfont icon-sandiancaidan play-icon" />
               </view>
             </view>
 
@@ -418,7 +418,7 @@
                 <text class="song-artist">{{ formatSongArtists(song) }} - {{ getSongAlbumName(song) }}</text>
               </view>
               <view class="song-actions">
-                <i class="iconfont icon-bofang1 play-icon" />
+                <i class="iconfont icon-sandiancaidan play-icon" />
               </view>
             </view>
           </view>

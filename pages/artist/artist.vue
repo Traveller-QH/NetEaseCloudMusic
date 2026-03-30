@@ -125,7 +125,7 @@
                 <text class="song-artist">{{ getArtistNames(song) }}</text>
               </view>
               <view class="song-action">
-                <i class="iconfont icon-bofang1 play-icon"/>
+                <i class="iconfont icon-sandiancaidan play-icon"/>
               </view>
             </view>
           </view>
@@ -148,7 +148,7 @@
               <text class="song-artist">{{ getArtistNames(song) }}</text>
             </view>
             <view class="song-action">
-              <i class="iconfont icon-bofang1 play-icon"/>
+              <i class="iconfont icon-sandiancaidan play-icon"/>
             </view>
           </view>
         </view>
@@ -1273,8 +1273,8 @@ onMounted(async () => {
       justify-content: center;
       
       .play-icon {
-        font-size: 40rpx;
-        color: #EC4141;
+        font-size: 30rpx;
+        color: #999;
       }
     }
   }

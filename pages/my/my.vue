@@ -153,7 +153,7 @@
 							<text class="playlist-meta">{{ playlist?.trackCount }}首 · by {{ playlist?.creator?.nickname }}</text>
 						</view>
 						<view class="playlist-action">
-							<i class="iconfont icon-gengduo more-icon"></i>
+							<i class="iconfont icon-sandiancaidan more-icon"></i>
 						</view>
 					</view>
 				</view>
@@ -189,7 +189,7 @@
 							<text class="recent-artist">{{ getArtistNames(song?.ar) }}</text>
 						</view>
 						<view class="recent-action">
-							<i class="iconfont icon-bofang1 play-icon"></i>
+							<i class="iconfont icon-sandiancaidan play-icon"></i>
 						</view>
 					</view>
 				</view>
@@ -902,7 +902,7 @@ const onTabChange = (name) => {
 		
 		.playlist-action {
 			.more-icon {
-				font-size: 40rpx;
+				font-size: 30rpx;
 				color: #ccc;
 			}
 		}
@@ -1014,8 +1014,8 @@ const onTabChange = (name) => {
 		
 		.recent-action {
 			.play-icon {
-				font-size: 64rpx;
-				color: #EC4141;
+				font-size: 30rpx;
+				color: #999;
 			}
 		}
 	}

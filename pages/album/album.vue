@@ -695,7 +695,7 @@ onMounted(async () => {
       justify-content: center;
 
       .action-icon {
-        font-size: 40rpx;
+        font-size: 30rpx;
         color: #999;
       }
     }

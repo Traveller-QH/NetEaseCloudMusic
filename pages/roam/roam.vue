@@ -83,7 +83,7 @@
 							<text class="guess-artist">{{ getArtistNames(item.song?.artists || item.artists) }}</text>
 						</view>
 						<view class="guess-action">
-							<i class="iconfont icon-bofang1 guess-play-icon" />
+							<i class="iconfont icon-sandiancaidan guess-play-icon" />
 						</view>
 					</view>
 				</view>
@@ -605,8 +605,8 @@ const onTabChange = (name) => {
 			
 			.guess-action {
 				.guess-play-icon {
-					font-size: 64rpx;
-					color: #EC4141;
+					font-size: 30rpx;
+					color: #999;
 				}
 			}
 		}

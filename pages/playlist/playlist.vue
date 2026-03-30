@@ -58,7 +58,7 @@
           <text class="song-artist">{{ getArtistNames(song) }} - {{ song.al?.name }}</text>
         </view>
         <view class="song-action">
-          <i class="iconfont icon-gengduo action-icon"/>
+          <i class="iconfont icon-sandiancaidan action-icon"/>
         </view>
       </view>
 
@@ -679,7 +679,7 @@ onMounted(async () => {
       justify-content: center;
 
       .action-icon {
-        font-size: 40rpx;
+        font-size: 30rpx;
         color: #999;
       }
     }

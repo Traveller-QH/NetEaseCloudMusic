@@ -95,7 +95,7 @@
           <text class="section-title">为你精选</text>
           <view class="section-more">
             <text class="more-text">播放全部</text>
-            <i class="iconfont icon-arrow-right more-arrow" />
+            <i class="iconfont icon-bofang1 more-arrow" />
           </view>
         </view>
         <view class="personal-list">
@@ -117,7 +117,7 @@
               <text class="song-artist">{{ getArtistNames(item.song?.artists || item.artists) }}</text>
             </view>
             <view class="song-action">
-              <i class="iconfont icon-bofang1 song-play-icon" />
+              <i class="iconfont icon-sandiancaidan song-play-icon" />
             </view>
           </view>
         </view>
@@ -728,8 +728,8 @@ const initData = async () => {
 
     .song-action {
       .song-play-icon {
-        font-size: 64rpx;
-        color: #ec4141;
+        font-size: 30rpx;
+        color: #999;
       }
     }
   }
